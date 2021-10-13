@@ -34,11 +34,11 @@
  * The parameters are self-explanatory.
  */
 CREATE OR REPLACE FUNCTION add_room(
-    floor_number BIGINT,
-    room_number BIGINT,
+    floor_number INT,
+    room_number INT,
     room_name TEXT,
-    room_capacity BIGINT,
-    department_id BIGINT -- extra parameter; needed for given ER model
+    room_capacity INT,
+    department_id INT -- extra parameter; needed for given ER model
 )
 RETURNS VOID AS $$
 
