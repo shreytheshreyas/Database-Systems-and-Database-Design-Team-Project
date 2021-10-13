@@ -87,12 +87,92 @@ $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 
 -- CREATE OR REPLACE FUNCTION change_capacity
 
--- CREATE OR REPLACE FUNCTION add_employee
+-- add_employee
+CREATE OR REPLACE PROCEDURE add_employee (
+    IN employee_name TEXT, 
+    IN employee_kind TEXT,
+    IN employee_did INTEGER,
+    IN mobile_contact_no INTEGER,
+    IN home_contact_no INTEGER,
+    IN office_contact_no INTEGER
+    ) AS $$
 
--- CREATE OR REPLACE FUNCTION remove_employee
+    DECLARE 
+    contact_no_json_obj JSON;
+    employee_id INTEGER;
+    BEGIN
+
+        IF  EXISTS(SELECT 1 FROM departments WHERE did = employee_did) THEN 
+            IF LOWER(employee_kind) != 'junior' AND LOWER(employee_kind) != 'senior' AND LOWER(employee_kind) != 'manager' THEN 
+                RAISE EXCEPTION 'Please enter a valid seniority position';
+            END IF;
+
+            contact_no_json_obj := json_build_object(
+                'mobile_contact',mobile_contact_no,
+                'home_contact',home_contact_no,
+                'office_contact',office_contact_no
+            );
+
+            INSERT INTO employees (
+                ename, 
+                contact, 
+                did
+            ) 
+            VALUES (
+                employee_name, 
+                contact_no_json_obj, 
+                employee_did
+            );
+
+            employee_id := (select eid FROM employees ORDER BY eid DESC LIMIT 1);
+
+            IF LOWER(employee_kind) = 'junior' THEN 
+                INSERT INTO junior VALUES(employee_id);
+            END IF;
+
+            IF LOWER(employee_kind) = 'senior' OR LOWER(employee_kind) = 'manager' THEN
+                INSERT INTO booker VALUES(employee_id);
+
+                CASE LOWER(employee_kind)
+                    WHEN 'senior' THEN 
+                        INSERT INTO senior VALUES (employee_id);
+                    
+                    WHEN 'manager' THEN 
+                        INSERT INTO manager VALUES (employee_id);
+
+                END CASE;      
+            END IF;     
+
+        ELSE 
+            RAISE EXCEPTION 'department with specified did does not exist';
+        END IF;
+
+    END;
 
 
+$$ LANGUAGE plpgsql;
 
+-- remove employee
+
+
+CREATE OR REPLACE PROCEDURE remove_employee(
+    IN employee_id INTEGER,
+    IN employee_regination_date DATE
+    ) AS $$
+    BEGIN 
+    IF  EXISTS(SELECT 1 FROM employees WHERE eid = employee_id) THEN 
+        IF EXISTS(SELECT 1 FROM employees WHERE eid = employee_id AND resigned_date is NOT NULL) THEN
+            RAISE EXCEPTION 'Employee has already left the company';
+        END IF;
+
+        UPDATE employees SET resigned_date = employee_regination_date WHERE employee_id = eid;
+
+    ELSE 
+        RAISE EXCEPTION 'Employee with specified employee id does not exist';
+    END IF;
+
+    END;
+$$ LANGUAGE plpgsql;
 /***************************************
  * CORE
  **************************************/
