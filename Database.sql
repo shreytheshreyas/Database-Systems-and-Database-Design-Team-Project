@@ -9,7 +9,7 @@ CREATE TABLE employees(
     email TEXT GENERATED ALWAYS AS ('xyz' || CAST (eid AS TEXT) || '@company.com') STORED,-- UNIQUE constraint is implicit because of GENERATED ALWAYS 
     contact JSON NOT NULL,
     resigned_date DATE DEFAULT NULL,
-    did INTEGER NOT NULL DEFAULT 'HR'
+    did INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE junior(
@@ -62,11 +62,11 @@ CREATE TABLE meeting_rooms(
     room INTEGER,
     building_floor INTEGER,
     rname TEXT,
-    did INTEGER NOT NULL, --constraint 10 is enforced.
+    did INTEGER NOT NULL DEFAULT 0, --constraint 10 is enforced.
     updated_new_cap INTEGER NOT NULL,
     updated_date DATE,
     CONSTRAINT meeting_rooms_pk PRIMARY KEY(room,building_floor),
-    CONSTRAINT meeting_room_dept_fk_constraint FOREIGN KEY (did) REFERENCES departments(did) ON DELETE 'TBD'
+    CONSTRAINT meeting_room_dept_fk_constraint FOREIGN KEY (did) REFERENCES departments(did) ON DELETE SET DEFAULT
 );
 
 --Sessions Enity, Books Entity, Approves Entity - Need Group's opinion
