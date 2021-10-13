@@ -25,9 +25,33 @@
  * BASIC
  **************************************/
 
--- CREATE OR REPLACE FUNCTION add_department
+/**
+ * Adds a new department with given parameters
+ * only if did is unique.
+ */
+CREATE OR REPLACE FUNCTION add_department(
+    IN did INTEGER,
+    IN dname TEXT
+)
+RETURNS VOID AS $$
 
--- CREATE OR REPLACE FUNCTION remove_department
+	INSERT INTO Departments VALUES (did, dname)
+	ON CONFLICT (did) DO NOTHING --wont insert if did clashes
+
+$$ Language sql;
+
+/**
+ * Removes a department specified by did parameter
+ */
+CREATE OR REPLACE FUNCTION remove_department(
+    IN did INT
+)
+RETURNS VOID AS $$
+
+	DELETE FROM Departments WHERE Departments.did = did;
+    -- need ON DELETE for FK constraints in schema to execute assumptions
+
+$$ Language sql;
 
 /**
  * Adds a meeting room with the given parameters.
