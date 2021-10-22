@@ -86,6 +86,14 @@ RETURNS VOID AS $$
 $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 
 -- CREATE OR REPLACE FUNCTION change_capacity
+CREATE OR REPLACE PROCEDURE ChangeCapacity
+	(IN floor_number INT, IN room_number INT, IN capacity INT, IN date DATE)
+AS $$
+	UPDATE meeting_rooms
+	SET updated_new_cap = capacity, updated_date = date
+	WHERE building_floor = floor_number AND room = room_number;
+$$ LANGUAGE sql;
+
 
 -- CREATE OR REPLACE FUNCTION add_employee
 
