@@ -7,11 +7,12 @@ CREATE TABLE employees(
     eid SERIAL CONSTRAINT employees_pk PRIMARY KEY,
     ename TEXT,
     email TEXT GENERATED ALWAYS AS ('xyz' || CAST (eid AS TEXT) || '@company.com') STORED,-- UNIQUE constraint is implicit because of GENERATED ALWAYS 
+    ekind TEXT,
+    did INTEGER NOT NULL DEFAULT 0,
+    resigned_date DATE DEFAULT NULL,
     mobile_contact INTEGER,
     home_contact INTEGER,
-    office_contact INTEGER,
-    resigned_date DATE DEFAULT NULL,
-    did INTEGER NOT NULL DEFAULT 0
+    office_contact INTEGER
 );
 
 CREATE TABLE junior(

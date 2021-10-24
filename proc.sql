@@ -88,73 +88,55 @@ $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 -- CREATE OR REPLACE FUNCTION change_capacity
 
 -- add_employee
-CREATE OR REPLACE PROCEDURE add_employee (
-    IN employee_name TEXT, 
+CREATE OR REPLACE PROCEDURE add_employee(
+    IN employee_name TEXT,
     IN employee_kind TEXT,
     IN employee_did INTEGER,
     IN mobile_contact_no INTEGER,
     IN home_contact_no INTEGER,
     IN office_contact_no INTEGER
     ) AS $$
-
-    DECLARE 
-    contact_no_json_obj JSON;
-    employee_id INTEGER;
     BEGIN
-
-        IF  EXISTS(SELECT 1 FROM departments WHERE did = employee_did) THEN 
+        IF EXISTS(SELECT 1 FROM departments WHERE did = employee_did) THEN 
             IF LOWER(employee_kind) != 'junior' AND LOWER(employee_kind) != 'senior' AND LOWER(employee_kind) != 'manager' THEN 
-                RAISE EXCEPTION 'Please enter a valid seniority position';
+                 RAISE EXCEPTION 'Please enter a valid seniority position';
             END IF;
-
-            contact_no_json_obj := json_build_object(
-                'mobile_contact',mobile_contact_no,
-                'home_contact',home_contact_no,
-                'office_contact',office_contact_no
-            );
-
-            INSERT INTO employees (
-                ename, 
-                contact, 
-                did
-            ) 
-            VALUES (
-                employee_name, 
-                contact_no_json_obj, 
-                employee_did
-            );
-
-            employee_id := (select eid FROM employees ORDER BY eid DESC LIMIT 1);
-
-            IF LOWER(employee_kind) = 'junior' THEN 
-                INSERT INTO junior VALUES(employee_id);
-            END IF;
-
-            IF LOWER(employee_kind) = 'senior' OR LOWER(employee_kind) = 'manager' THEN
-                INSERT INTO booker VALUES(employee_id);
-
-                CASE LOWER(employee_kind)
-                    WHEN 'senior' THEN 
-                        INSERT INTO senior VALUES (employee_id);
-                    
-                    WHEN 'manager' THEN 
-                        INSERT INTO manager VALUES (employee_id);
-
-                END CASE;      
-            END IF;     
+            
+            INSERT INTO employees (ename,ekind,did,mobile_contact,home_contact,office_contact) VALUES (employee_name,LOWER(employee_kind),employee_did,mobile_contact_no,home_contact_no,office_contact_no);
 
         ELSE 
-            RAISE EXCEPTION 'department with specified did does not exist';
-        END IF;
-
-    END;
-
+            RAISE EXCEPTION 'department with specified department id does not exist';
+        END IF;  
+    END; 
 
 $$ LANGUAGE plpgsql;
 
+--Asscoiated Trigger and Trigger function for add_employee
+CREATE OR REPLACE FUNCTION employee_classifier_funct()
+RETURNS TRIGGER AS $$
+BEGIN
+    CASE NEW.ekind 
+        WHEN 'junior' THEN INSERT INTO junior VALUES (NEW.eid);
+        WHEN 'senior' THEN
+            INSERT INTO booker VALUES (NEW.eid);
+            INSERT INTO senior VALUES (NEW.eid);
+        WHEN 'manager' THEN 
+            INSERT INTO booker VALUES (NEW.eid);
+            INSERT INTO manager VALUES (NEW.eid);
+    END CASE;
+    
+    RETURN NULL;
+END; 
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER employee_classifier
+AFTER INSERT ON employees
+FOR EACH ROW EXECUTE FUNCTION 
+    employee_classifier_funct();
+
+
+
 -- remove employee
-
-
 CREATE OR REPLACE PROCEDURE remove_employee(
     IN employee_id INTEGER,
     IN employee_regination_date DATE
