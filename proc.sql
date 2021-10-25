@@ -113,7 +113,88 @@ $$ LANGUAGE sql;
 
 -- CREATE OR REPLACE FUNCTION join_meeting
 
--- CREATE OR REPLACE FUNCTION leave_meeting
+/**
+ * Causes the employee with the given employee_id to leave the meeting with the given parameters.
+ */
+CREATE OR REPLACE FUNCTION leave_meeting(
+    floor_number INT,
+    room_number INT,
+    session_date_ INT, -- named with a trailing underscore to avoid naming clash
+    start_hour TIME,
+    end_hour TIME,
+    employee_id INT
+)
+RETURNS VOID AS $$
+DECLARE
+    session_hour TIME := start_hour;
+    is_joining_some_session BOOLEAN := FALSE;
+    is_booker_of_some_session BOOLEAN := FALSE;
+BEGIN
+
+    IF NOT is_existing_employee(employee_id) THEN
+        RAISE EXCEPTION 'This employee does not exist.';
+    END IF;
+
+    IF NOT is_existing_meeting(floor_number, room_number, session_date_, start_hour, end_hour) THEN
+        RAISE EXCEPTION 'This meeting does not exist.';
+    END IF;
+
+    WHILE session_hour < end_hour LOOP
+        IF is_approved_session(floor_number, room_number, session_date_, session_hour) THEN
+            RAISE EXCEPTION 'None of the sessions must be approved.';
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+
+    -- Do nothing if not originally joining the meeting (a contiguous series of sessions), as per the requirements.
+    session_hour := start_hour;
+    WHILE session_hour < end_hour AND NOT is_joining_some_session LOOP
+        IF is_joining_session(floor_number, room_number, session_date_, session_hour, employee_id) THEN
+            is_joining_some_session := TRUE;
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+    IF NOT is_joining_some_session THEN
+        RETURN;
+    END IF;
+
+    IF NOT is_joining_entire_duration(floor_number, room_number, session_date_, start_hour, end_hour, employee_id) THEN
+        RAISE EXCEPTION 'If the employee was originally joining some session within the duration, '
+                || 'then they must have been originally joining all the sessions within the duration '
+                || 'to leave them all.';
+    END IF;
+
+    session_hour := start_hour;
+    WHILE session_hour < end_hour AND NOT is_booker_of_some_session LOOP
+        IF is_booker_of_session(floor_number, room_number, session_date_, session_hour, employee_id) THEN
+            is_booker_of_some_session := TRUE;
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+    IF is_booker_of_some_session
+            AND NOT is_booker_of_entire_duration(floor_number, room_number, session_date_, start_hour, end_hour,
+                    employee_id) THEN
+        RAISE EXCEPTION 'If the employee is the booker of some session within the duration, '
+                || 'then they must be the booker of all the sessions within the duration '
+                || 'to leave them all.';
+    END IF;
+
+    IF is_booker_of_some_session THEN
+        unbook_room(floor_number, room_number, session_date_, start_hour, end_hour, employee_id);
+    ELSE
+        DELETE FROM
+            joins j
+        WHERE
+            j.eid = employee_id
+            AND j.building_floor = floor_number
+            AND j.room = room_number
+            AND j.session_date = session_date_
+            AND j.session_time >= start_hour
+            AND j.session_time < end_hour;
+    END IF;
+
+END;
+$$ LANGUAGE plpgsql;
 
 -- CREATE OR REPLACE FUNCTION approve_meeting
 
