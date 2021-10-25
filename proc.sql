@@ -178,7 +178,10 @@ CREATE OR REPLACE FUNCTION search_room (
         temp_hour TIME;
         flag INTEGER;
     BEGIN
-
+        IF availability_date <= CURRENT_DATE THEN 
+            RAISE EXCEPTION 'Please enter a valid date';
+        END IF;
+        
         OPEN tableCursor;
         LOOP
             FETCH tableCursor INTO rec;
