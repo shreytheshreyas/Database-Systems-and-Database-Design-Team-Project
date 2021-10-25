@@ -93,11 +93,11 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql;
 
 CREATE OR REPLACE FUNCTION is_joining_session(
-    employee_id INT,
     floor_number INT,
     room_number INT,
     session_date_ INT, -- named with a trailing underscore to avoid naming clash
-    session_hour TIME
+    session_hour TIME,
+    employee_id INT
 )
 RETURNS BOOLEAN AS $$
 
@@ -120,12 +120,12 @@ $$ LANGUAGE sql;
  * Checks if the given employee is joining all the sessions in the duration.
  */
 CREATE OR REPLACE FUNCTION is_joining_entire_duration(
-    employee_id INT,
     floor_number INT,
     room_number INT,
     session_date INT,
     start_hour TIME,
-    end_hour TIME
+    end_hour TIME,
+    employee_id INT
 )
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -133,7 +133,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_joining_session(employee_id, floor_number, room_number, session_date, session_hour)
+        IF NOT is_joining_session(floor_number, room_number, session_date, session_hour, employee_id)
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -144,11 +144,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION is_booker_of_session(
-    employee_id INT,
     floor_number INT,
     room_number INT,
     session_date_ INT, -- named with a trailing underscore to avoid naming clash
-    session_hour TIME
+    session_hour TIME,
+    employee_id INT
 )
 RETURNS BOOLEAN AS $$
 
@@ -168,12 +168,12 @@ $$ LANGUAGE sql;
  * Checks if the given employee is the booker of all the sessions in the duration.
  */
 CREATE OR REPLACE FUNCTION is_booker_of_entire_duration(
-    employee_id INT,
     floor_number INT,
     room_number INT,
     session_date INT,
     start_hour TIME,
-    end_hour TIME
+    end_hour TIME,
+    employee_id INT
 )
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -181,7 +181,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_booker_of_session(employee_id, floor_number, room_number, session_date, session_hour)
+        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id)
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
