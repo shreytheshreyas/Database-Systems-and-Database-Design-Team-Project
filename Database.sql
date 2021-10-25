@@ -86,7 +86,7 @@ CREATE TABLE meeting_sessions(
     booker_id INTEGER DEFAULT NULL,
     endorser_id INTEGER DEFAULT NULL, 
     CONSTRAINT meeting_sessions_pk PRIMARY KEY(room,building_floor,session_date,session_time),
-    CONSTRAINT session_meeting_room_fk_constraint FOREIGN KEY (room,building_floor) REFERENCES meeting_rooms(room,building_floor),
+    CONSTRAINT session_meeting_room_fk_constraint FOREIGN KEY (room,building_floor) REFERENCES meeting_rooms(room,building_floor) ON DELETE CASCADE,
     CONSTRAINT session_booker_fk_constraint FOREIGN KEY (booker_id) REFERENCES booker(eid),
     CONSTRAINT endorser_id_fk_constraint FOREIGN KEY (endorser_id) REFERENCES manager(eid)
 );

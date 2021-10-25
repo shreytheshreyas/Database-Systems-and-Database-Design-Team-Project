@@ -129,6 +129,7 @@ BEGIN
 END; 
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS employee_classifier ON employees;
 CREATE TRIGGER employee_classifier
 AFTER INSERT ON employees
 FOR EACH ROW EXECUTE FUNCTION 
@@ -159,7 +160,56 @@ $$ LANGUAGE plpgsql;
  * CORE
  **************************************/
 
--- CREATE OR REPLACE FUNCTION search_room
+CREATE OR REPLACE FUNCTION search_room (
+    IN capacity INT,
+    IN availability_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME 
+    ) 
+    RETURNS TABLE(room_num INTEGER, building_floor INTEGER, department_id INTEGER, 
+    room_capacity INTEGER)
+    AS $$
+    DECLARE 
+    
+        tableCursor CURSOR 
+        FOR (SELECT m.room, m.building_floor, m.did, m.updated_new_cap FROM meeting_rooms m WHERE m.updated_new_cap >= capacity ORDER BY m.updated_new_cap);
+
+        rec RECORD;
+        temp_hour TIME;
+        flag INTEGER;
+    BEGIN
+
+        OPEN tableCursor;
+        LOOP
+            FETCH tableCursor INTO rec;
+                EXIT WHEN NOT FOUND;
+
+                temp_hour := start_hour;
+                flag := 0;
+                LOOP 
+                    EXIT WHEN temp_hour = end_hour OR FLAG = 1;
+                    
+                    IF EXISTS(SELECT 1 FROM meeting_sessions m
+                    WHERE m.room = rec.room AND m.building_floor = rec.building_floor 
+                    AND m.session_date = availability_date AND m.session_time = temp_hour) THEN 
+                        flag := 1;
+                    END IF;
+
+                    temp_hour := temp_hour + interval '1 hour';
+                END LOOP; 
+
+            IF flag = 0 THEN
+                room_num := rec.room;
+                building_floor := rec.building_floor;
+                department_id := rec.did;
+                room_capacity := rec.updated_new_cap;
+
+                RETURN NEXT;
+            END IF;
+        END LOOP;
+        CLOSE tableCursor;
+    END;
+$$ LANGUAGE plpgsql 
 
 -- CREATE OR REPLACE FUNCTION book_room
 
