@@ -135,8 +135,16 @@ BEGIN
         RAISE EXCEPTION 'This employee does not exist.';
     END IF;
 
+    IF is_retired_employee(employee_id) THEN
+        RAISE EXCEPTION 'This employee is already retired.';
+    END IF;
+
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
         RAISE EXCEPTION 'This meeting does not exist.';
+    END IF;
+
+    IF meeting_date < CURRENT_DATE THEN
+        RAISE EXCEPTION 'This meeting is already over.';
     END IF;
 
     WHILE session_hour < end_hour LOOP
