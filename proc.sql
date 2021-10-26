@@ -222,6 +222,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION is_employee_of_same_department_as_room(
+    floor_number INT,
+    room_number INT,
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            meeting_rooms r
+            INNER JOIN employees e ON
+                r.did = e.did
+        WHERE
+            r.building_floor = floor_number
+            AND r.room = room_number
+            AND e.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
