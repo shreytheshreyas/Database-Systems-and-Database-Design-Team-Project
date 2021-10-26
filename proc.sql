@@ -27,7 +27,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION is_existing_session(
     floor_number INT,
     room_number INT,
-    session_date_ INT, -- named with a trailing underscore to avoid naming clash
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
     session_hour TIME
 )
 RETURNS BOOLEAN AS $$
@@ -52,7 +52,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION is_existing_meeting(
     floor_number INT,
     room_number INT,
-    meeting_date INT,
+    meeting_date DATE,
     start_hour TIME,
     end_hour TIME
 )
@@ -75,7 +75,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION is_approved_session(
     floor_number INT,
     room_number INT,
-    session_date_ INT, -- named with a trailing underscore to avoid naming clash
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
     session_hour TIME
 )
 RETURNS BOOLEAN AS $$
@@ -95,7 +95,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION is_joining_session(
     floor_number INT,
     room_number INT,
-    session_date_ INT, -- named with a trailing underscore to avoid naming clash
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
     session_hour TIME,
     employee_id INT
 )
@@ -122,7 +122,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION is_joining_entire_duration(
     floor_number INT,
     room_number INT,
-    session_date INT,
+    session_date DATE,
     start_hour TIME,
     end_hour TIME,
     employee_id INT
@@ -146,7 +146,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION is_booker_of_session(
     floor_number INT,
     room_number INT,
-    session_date_ INT, -- named with a trailing underscore to avoid naming clash
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
     session_hour TIME,
     employee_id INT
 )
@@ -170,7 +170,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION is_booker_of_entire_duration(
     floor_number INT,
     room_number INT,
-    session_date INT,
+    session_date DATE,
     start_hour TIME,
     end_hour TIME,
     employee_id INT
