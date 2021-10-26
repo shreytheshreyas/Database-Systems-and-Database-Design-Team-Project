@@ -24,6 +24,37 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION is_retired_employee(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT
+        (e.resigned_date IS NOT NULL
+        AND e.resigned_date < CURRENT_DATE)
+    FROM
+        employees e
+    WHERE
+        e.eid = employee_id;
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_existing_manager(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            managers m
+        WHERE
+            m.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
 CREATE OR REPLACE FUNCTION is_existing_session(
     floor_number INT,
     room_number INT,
