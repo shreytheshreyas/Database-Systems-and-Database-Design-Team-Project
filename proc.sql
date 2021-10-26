@@ -119,7 +119,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION leave_meeting(
     floor_number INT,
     room_number INT,
-    meeting_date INT,
+    meeting_date DATE,
     start_hour TIME,
     end_hour TIME,
     employee_id INT
