@@ -119,7 +119,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION leave_meeting(
     floor_number INT,
     room_number INT,
-    session_date_ INT, -- named with a trailing underscore to avoid naming clash
+    meeting_date INT,
     start_hour TIME,
     end_hour TIME,
     employee_id INT
@@ -135,12 +135,12 @@ BEGIN
         RAISE EXCEPTION 'This employee does not exist.';
     END IF;
 
-    IF NOT is_existing_meeting(floor_number, room_number, session_date_, start_hour, end_hour) THEN
+    IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
     WHILE session_hour < end_hour LOOP
-        IF is_approved_session(floor_number, room_number, session_date_, session_hour) THEN
+        IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
             RAISE EXCEPTION 'None of the sessions must be approved.';
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -149,7 +149,7 @@ BEGIN
     -- Do nothing if not originally joining the meeting (a contiguous series of sessions), as per the requirements.
     session_hour := start_hour;
     WHILE session_hour < end_hour AND NOT is_joining_some_session LOOP
-        IF is_joining_session(floor_number, room_number, session_date_, session_hour, employee_id) THEN
+        IF is_joining_session(floor_number, room_number, meeting_date, session_hour, employee_id) THEN
             is_joining_some_session := TRUE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -158,7 +158,7 @@ BEGIN
         RETURN;
     END IF;
 
-    IF NOT is_joining_entire_duration(floor_number, room_number, session_date_, start_hour, end_hour, employee_id) THEN
+    IF NOT is_joining_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id) THEN
         RAISE EXCEPTION 'If the employee was originally joining some session within the duration, '
                 || 'then they must have been originally joining all the sessions within the duration '
                 || 'to leave them all.';
@@ -166,13 +166,13 @@ BEGIN
 
     session_hour := start_hour;
     WHILE session_hour < end_hour AND NOT is_booker_of_some_session LOOP
-        IF is_booker_of_session(floor_number, room_number, session_date_, session_hour, employee_id) THEN
+        IF is_booker_of_session(floor_number, room_number, meeting_date, session_hour, employee_id) THEN
             is_booker_of_some_session := TRUE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
     END LOOP;
     IF is_booker_of_some_session
-            AND NOT is_booker_of_entire_duration(floor_number, room_number, session_date_, start_hour, end_hour,
+            AND NOT is_booker_of_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour,
                     employee_id) THEN
         RAISE EXCEPTION 'If the employee is the booker of some session within the duration, '
                 || 'then they must be the booker of all the sessions within the duration '
@@ -180,7 +180,7 @@ BEGIN
     END IF;
 
     IF is_booker_of_some_session THEN
-        unbook_room(floor_number, room_number, session_date_, start_hour, end_hour, employee_id);
+        unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
     ELSE
         DELETE FROM
             joins j
@@ -188,7 +188,7 @@ BEGIN
             j.eid = employee_id
             AND j.building_floor = floor_number
             AND j.room = room_number
-            AND j.session_date = session_date_
+            AND j.session_date = meeting_date
             AND j.session_time >= start_hour
             AND j.session_time < end_hour;
     END IF;
