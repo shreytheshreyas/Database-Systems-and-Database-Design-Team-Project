@@ -52,7 +52,7 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION is_existing_meeting(
     floor_number INT,
     room_number INT,
-    session_date INT,
+    meeting_date INT,
     start_hour TIME,
     end_hour TIME
 )
@@ -62,7 +62,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_existing_session(floor_number, room_number, session_date, session_hour)
+        IF NOT is_existing_session(floor_number, room_number, meeting_date, session_hour)
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
