@@ -17,7 +17,7 @@ RETURNS BOOLEAN AS $$
         SELECT
             1
         FROM
-            Employees e
+            employees e
         WHERE
             e.eid = employee_id
     );
