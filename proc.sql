@@ -143,13 +143,17 @@ BEGIN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
-    IF meeting_date < CURRENT_DATE THEN
+    IF meeting_date < CURRENT_DATE || (meeting_date = CURRENT_DATE AND end_hour < CURRENT_TIME) THEN
         RAISE EXCEPTION 'This meeting is already over.';
+    END IF;
+
+    IF meeting_date = CURRENT_DATE AND start_hour < CURRENT_TIME THEN
+        RAISE EXCEPTION 'This meeting has already started.';
     END IF;
 
     WHILE session_hour < end_hour LOOP
         IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
-            RAISE EXCEPTION 'None of the sessions must be approved.';
+            RAISE EXCEPTION 'None of the sessions in the meeting must already be approved.';
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
     END LOOP;
