@@ -95,12 +95,74 @@ AS $$
 $$ LANGUAGE sql;
 
 
--- CREATE OR REPLACE FUNCTION add_employee
+-- add_employee
+CREATE OR REPLACE PROCEDURE add_employee(
+    IN employee_name TEXT,
+    IN employee_kind TEXT,
+    IN employee_did INTEGER,
+    IN mobile_contact_no INTEGER,
+    IN home_contact_no INTEGER,
+    IN office_contact_no INTEGER
+    ) AS $$
+    BEGIN
+        IF EXISTS(SELECT 1 FROM departments WHERE did = employee_did) THEN 
+            IF LOWER(employee_kind) != 'junior' AND LOWER(employee_kind) != 'senior' AND LOWER(employee_kind) != 'manager' THEN 
+                 RAISE EXCEPTION 'Please enter a valid seniority position';
+            END IF;
+            
+            INSERT INTO employees (ename,ekind,did,mobile_contact,home_contact,office_contact) VALUES (employee_name,LOWER(employee_kind),employee_did,mobile_contact_no,home_contact_no,office_contact_no);
 
--- CREATE OR REPLACE FUNCTION remove_employee
+        ELSE 
+            RAISE EXCEPTION 'department with specified department id does not exist';
+        END IF;  
+    END; 
+
+$$ LANGUAGE plpgsql;
+
+--Asscoiated Trigger and Trigger function for add_employee
+CREATE OR REPLACE FUNCTION employee_classifier_funct()
+RETURNS TRIGGER AS $$
+BEGIN
+    CASE NEW.ekind 
+        WHEN 'junior' THEN INSERT INTO junior VALUES (NEW.eid);
+        WHEN 'senior' THEN
+            INSERT INTO booker VALUES (NEW.eid);
+            INSERT INTO senior VALUES (NEW.eid);
+        WHEN 'manager' THEN 
+            INSERT INTO booker VALUES (NEW.eid);
+            INSERT INTO manager VALUES (NEW.eid);
+    END CASE;
+    
+    RETURN NULL;
+END; 
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER employee_classifier
+AFTER INSERT ON employees
+FOR EACH ROW EXECUTE FUNCTION 
+    employee_classifier_funct();
 
 
 
+-- remove employee
+CREATE OR REPLACE PROCEDURE remove_employee(
+    IN employee_id INTEGER,
+    IN employee_regination_date DATE
+    ) AS $$
+    BEGIN 
+    IF  EXISTS(SELECT 1 FROM employees WHERE eid = employee_id) THEN 
+        IF EXISTS(SELECT 1 FROM employees WHERE eid = employee_id AND resigned_date is NOT NULL) THEN
+            RAISE EXCEPTION 'Employee has already left the company';
+        END IF;
+
+        UPDATE employees SET resigned_date = employee_regination_date WHERE employee_id = eid;
+
+    ELSE 
+        RAISE EXCEPTION 'Employee with specified employee id does not exist';
+    END IF;
+
+    END;
+$$ LANGUAGE plpgsql;
 /***************************************
  * CORE
  **************************************/
