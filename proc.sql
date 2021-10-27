@@ -22,7 +22,29 @@ RETURNS BOOLEAN AS $$
         FROM employees e
         WHERE e.eid = employee_id
         AND fever = True
-        );
+    );
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION get_entire_meeting_duration (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    employee_id INT
+)
+RETURNS INT AS $$ 
+DECLARE
+    session_hour TIME := start_hour;
+    ctr INT := 0;
+BEGIN
+    WHILE session_hour < end_hour LOOP
+        IF is_existing_session(floor_number, room_number, meeting_date, start_hour) THEN
+            ctr := ctr + 1
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;       
+    RETURN ctr;
+END;
 $$ LANGUAGE sql;
 
 /***************************************
