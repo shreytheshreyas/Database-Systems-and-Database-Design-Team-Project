@@ -15,14 +15,14 @@
 CREATE OR REPLACE FUNCTION has_fever_employee (
 	employee_id INT
 )
-RETURNS BOOLEAN AS $$ -- true for fever
+RETURNS BOOLEAN AS $$
 
-SELECT EXISTS (
-	SELECT 1
-	FROM employees e
-	WHERE e.eid = employee_id
-	AND fever = True
-	);
+    SELECT EXISTS (
+        SELECT 1
+        FROM employees e
+        WHERE e.eid = employee_id
+        AND fever = True
+        );
 $$ LANGUAGE sql;
 
 /***************************************
