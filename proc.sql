@@ -111,7 +111,48 @@ $$ LANGUAGE sql;
 
 -- CREATE OR REPLACE FUNCTION unbook_room
 
--- CREATE OR REPLACE FUNCTION join_meeting
+CREATE OR REPLACE FUNCTION join_meeting (
+    IN floor_number INT,
+    IN room_number INT,
+    IN session_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN eid INT
+    )
+RETURNS VOID AS $$ 
+    DECLARE temp_time TIME := start_hour
+BEGIN
+
+    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
+        RAISE EXCEPTION 'Meeting session does not exist.';
+    END IF;
+
+    IF (is_approved_session(floor_number, room_number, session_date, start_hour)) THEN
+        RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
+    END IF;
+
+    IF (is_retired_employee(eid)) THEN
+        RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
+    END IF;
+
+    IF (has_fever_employee(eid)) THEN
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+    END IF;
+
+    IF NOT (session_date >= CURRENT_DATE AND start_hour > CURRENT_TIME) THEN 
+        RAISE EXCEPTION 'Meeting is currently/has already occurred.';
+    END IF;
+
+    -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
+    -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
+    -- would aggregation help (2.4 in ER pdf)
+    WHILE temp_time < end_hour LOOP
+        INSERT INTO joins (eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time)
+        temp_time := temp_time + INTERVAL '1 hour';
+    END LOOP
+END;
+$$ LANGUAGE sql;
+
 
 -- CREATE OR REPLACE FUNCTION leave_meeting
 
