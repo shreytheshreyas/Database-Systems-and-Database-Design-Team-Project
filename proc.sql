@@ -21,9 +21,9 @@ RETURNS BOOLEAN AS $$
 
     SELECT EXISTS (
         SELECT 1
-        FROM employees e
-        WHERE e.eid = employee_id
-        AND fever = True
+        FROM health_declaration h
+        WHERE h.eid = employee_id
+        AND fever = true
     );
 $$ LANGUAGE sql;
 
