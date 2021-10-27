@@ -11,7 +11,9 @@
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
-
+/**
+ * Returns true when selected employee has a fever
+ */
 CREATE OR REPLACE FUNCTION has_fever_employee (
 	employee_id INT
 )
@@ -25,6 +27,9 @@ RETURNS BOOLEAN AS $$
     );
 $$ LANGUAGE sql;
 
+/**
+ * Get duration (hours) of a selected meeting
+ */
 CREATE OR REPLACE FUNCTION get_entire_meeting_duration (
     floor_number INT,
     room_number INT,
