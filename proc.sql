@@ -240,8 +240,30 @@ $$ LANGUAGE plpgsql
 
 -- CREATE OR REPLACE FUNCTION declare_health
 
--- CREATE OR REPLACE FUNCTION contact_tracing
-
+CREATE OR REPLACE FUNCTION contact_tracing (
+    employee_id INT
+    )
+RETURNS TABLE (
+    eid INT
+    ) 
+    AS $$
+    BEGIN
+        RETURN QUERY 
+            SELECT distinct j.eid
+            FROM joins j
+            WHERE EXISTS (
+                SELECT 1
+                FROM meeting_sessions m
+                WHERE j.room = m.room
+                AND j.building_floor = m.building_floor
+                AND j.session_date = m.session_date
+                AND j.session_time = m.session_time
+                AND j.eid <> employee_id
+                AND m.endorser_id IS NULL
+                -- AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE -- need to manually test it
+            );
+    END;
+$$ LANGUAGE plpgsql
 
 
 /***************************************
