@@ -119,11 +119,14 @@ CREATE OR REPLACE FUNCTION join_meeting (
     IN end_hour TIME,
     IN eid INT
     )
-RETURNS VOID AS $$ 
-    DECLARE temp_time TIME := start_hour
+RETURNS VOID AS $$
+
+DECLARE 
+    temp_time TIME := start_hour;
+    
 BEGIN
 
-    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
+    IF (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
         RAISE EXCEPTION 'Meeting session does not exist.';
     END IF;
 
@@ -147,11 +150,12 @@ BEGIN
     -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
     -- would aggregation help (2.4 in ER pdf)
     WHILE temp_time < end_hour LOOP
-        INSERT INTO joins (eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time)
+        INSERT INTO joins (eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time);
         temp_time := temp_time + INTERVAL '1 hour';
-    END LOOP
+    END LOOP;
 END;
-$$ LANGUAGE sql;
+$$ LANGUAGE plpgsql;
+
 
 
 -- CREATE OR REPLACE FUNCTION leave_meeting
