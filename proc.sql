@@ -223,8 +223,37 @@ CREATE OR REPLACE FUNCTION search_room (
 $$ LANGUAGE plpgsql 
 
 -- CREATE OR REPLACE FUNCTION book_room
+--  This routine is used to book a given room. The inputs to the routine should minimally include:
+-- Floor number
+-- Room number
+-- Date
+-- Start hour
+-- End hour
+-- Employee ID
+-- The employee ID is the ID of the employee that is booking the room. If the booking is allowed (see the conditions
+-- necessary for this in Application), the routine will process the booking for people to join and for approval.
+CREATE OR REPLACE FUNCTION book_room (
+    IN floor_number INT,
+    IN room INT,
+    IN booking_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN employee_id INT,
+    )
+
+    INSERT INTO meeting_sessions VALUES (
+        room,
+        floor_number,
+        booking_date,
+        booking_date,
+        employee_id,
+        NULL, 
+    );
+
+$$ LANGUAGE plpgsql 
 
 -- CREATE OR REPLACE FUNCTION unbook_room
+
 
 -- CREATE OR REPLACE FUNCTION join_meeting
 
