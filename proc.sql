@@ -264,7 +264,7 @@ RETURNS TABLE (
                 AND j.session_date = m.session_date
                 AND j.session_time = m.session_time
                 --AND m.endorser_id IS NOT NULL
-                -- AND D-D-3
+                -- AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE -- need to manually test it
                 ) t1
             WHERE j1.room = t1.room
             AND j1.building_floor = t1.building_floor
