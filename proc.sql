@@ -275,6 +275,24 @@ RETURNS TABLE (
 $$ LANGUAGE plpgsql
 
 
+
+CREATE OR REPLACE FUNCTION contact_tracing_procedure()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    -- close contacts removed from D to D+7 meetings
+    DELETE FROM joins j
+    WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
+    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'))
+
+    -- infected emp removed from all future meetings
+    DELETE FROM joins j
+    WHERE j.eid = NEW.eid
+    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME))
+
+END;
+$$ LANGUAGE plpgsql;
+
 /***************************************
  * ADMIN
  **************************************/
