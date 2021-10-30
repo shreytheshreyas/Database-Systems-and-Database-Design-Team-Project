@@ -19,6 +19,12 @@
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
+DROP TRIGGER IF EXISTS employee_has_fever
+CREATE TRIGGER employee_has_fever
+AFTER INSERT ON health_declaration
+FOR EACH ROW
+WHEN (NEW.fever = true)
+EXECUTE FUNCTION contact_tracing_procedure();
 
 /***************************************
  * BASIC
