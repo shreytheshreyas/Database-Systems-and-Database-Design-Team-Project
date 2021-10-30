@@ -290,6 +290,10 @@ BEGIN
     WHERE j.eid = NEW.eid
     AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME))
 
+    -- If the employee is the one booking the room, the booking is cancelled, approved or not.
+    DELETE FROM meeting_sessions m
+    WHERE NEW.eid = meeting_sessions.booker_id
+
 END;
 $$ LANGUAGE plpgsql;
 
