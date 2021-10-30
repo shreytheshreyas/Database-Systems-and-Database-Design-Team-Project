@@ -20,7 +20,6 @@
 -- CREATE TRIGGER <trigger name>
 
 
-
 /***************************************
  * BASIC
  **************************************/
@@ -249,19 +248,23 @@ RETURNS TABLE (
     AS $$
     BEGIN
         RETURN QUERY 
-            SELECT distinct j.eid
-            FROM joins j
-            WHERE EXISTS (
-                SELECT 1
-                FROM meeting_sessions m
-                WHERE j.room = m.room
+            SELECT DISTINCT j1.eid
+            FROM joins j1,
+                (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
+                FROM meeting_sessions m, joins j
+                WHERE j.eid = employee_id
+                AND j.room = m.room
                 AND j.building_floor = m.building_floor
                 AND j.session_date = m.session_date
                 AND j.session_time = m.session_time
-                AND j.eid <> employee_id
-                AND m.endorser_id IS NULL
-                -- AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE -- need to manually test it
-            );
+                --AND m.endorser_id IS NOT NULL
+                -- AND D-D-3
+                ) t1
+            WHERE j1.room = t1.room
+            AND j1.building_floor = t1.building_floor
+            AND j1.session_date = t1.session_date
+            AND j1.session_time = t1.session_time
+            AND j1.eid <> employee_id;
     END;
 $$ LANGUAGE plpgsql
 
