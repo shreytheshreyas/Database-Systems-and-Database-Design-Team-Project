@@ -559,7 +559,70 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- CREATE OR REPLACE FUNCTION approve_meeting
+/**
+ * Causes the given employee to approve the given meeting.
+ */
+CREATE OR REPLACE FUNCTION approve_meeting(
+    floor_number INT,
+    room_number INT,
+    meeting_date DATE,
+    start_hour TIME,
+    end_hour TIME,
+    employee_id INT
+)
+RETURNS VOID AS $$
+DECLARE
+    session_hour TIME := start_hour;
+BEGIN
+
+    IF NOT is_existing_employee(employee_id) THEN
+        RAISE EXCEPTION 'This employee does not exist.';
+    END IF;
+
+    IF is_retired_employee(employee_id) THEN
+        RAISE EXCEPTION 'This employee is already retired.';
+    END IF;
+
+    IF NOT is_existing_manager(employee_id) THEN
+        RAISE EXCEPTION 'This employee is not a manager; only managers can approve a meeting.'
+    END IF;
+
+    IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
+        RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
+    END IF;
+
+    IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
+        RAISE EXCEPTION 'This meeting does not exist.';
+    END IF;
+
+    IF meeting_date < CURRENT_DATE || (meeting_date = CURRENT_DATE AND end_hour < CURRENT_TIME) THEN
+        RAISE EXCEPTION 'This meeting would have already been over.';
+    END IF;
+
+    IF meeting_date = CURRENT_DATE AND start_hour < CURRENT_TIME THEN
+        RAISE EXCEPTION 'This meeting would have already started.';
+    END IF;
+
+    WHILE session_hour < end_hour LOOP
+        IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
+            RAISE EXCEPTION 'None of the sessions in the meeting must already be approved.';
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+
+    UPDATE
+        meeting_sessions s
+    SET
+        s.endorser_id = employee_id
+    WHERE
+        s.building_floor = floor_number
+        AND s.room = room_number
+        AND s.session_date = meeting_date
+        AND s.session_time >= start_hour
+        AND s.session_time < end_hour;
+
+END;
+$$ LANGUAGE plpgsql;
 
 
 
