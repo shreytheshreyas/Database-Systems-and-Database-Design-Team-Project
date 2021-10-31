@@ -8,6 +8,242 @@
  * HELPER
  **************************************/
 
+CREATE OR REPLACE FUNCTION is_existing_employee(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            employees e
+        WHERE
+            e.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_retired_employee(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT
+        (e.resigned_date IS NOT NULL
+        AND e.resigned_date < CURRENT_DATE)
+    FROM
+        employees e
+    WHERE
+        e.eid = employee_id;
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_existing_manager(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            managers m
+        WHERE
+            m.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_existing_session(
+    floor_number INT,
+    room_number INT,
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
+    session_hour TIME
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            meeting_sessions s
+        WHERE
+            s.building_floor = floor_number
+            AND s.room = room_number
+            AND s.session_date = session_date_
+            AND s.session_time = session_hour
+    );
+
+$$ LANGUAGE sql;
+
+/**
+ * Checks if all the sessions in the meeting exist.
+ */
+CREATE OR REPLACE FUNCTION is_existing_meeting(
+    floor_number INT,
+    room_number INT,
+    meeting_date DATE,
+    start_hour TIME,
+    end_hour TIME
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    session_hour TIME := start_hour;
+BEGIN
+
+    WHILE session_hour < end_hour LOOP
+        IF NOT is_existing_session(floor_number, room_number, meeting_date, session_hour)
+            RETURN FALSE;
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+    RETURN TRUE;
+
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION is_approved_session(
+    floor_number INT,
+    room_number INT,
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
+    session_hour TIME
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT
+        s.endorser_id IS NOT NULL
+    FROM
+        meeting_sessions s
+    WHERE
+        s.building_floor = floor_number
+        AND s.room = room_number
+        AND s.session_date = session_date_
+        AND s.session_time = session_hour;
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_joining_session(
+    floor_number INT,
+    room_number INT,
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
+    session_hour TIME,
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            joins j
+        WHERE
+            j.eid = employee_id
+            AND j.building_floor = floor_number
+            AND j.room = room_number
+            AND j.session_date = session_date_
+            AND j.session_time = session_hour
+    );
+
+$$ LANGUAGE sql;
+
+/**
+ * Checks if the given employee is joining all the sessions in the duration.
+ */
+CREATE OR REPLACE FUNCTION is_joining_entire_duration(
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    end_hour TIME,
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    session_hour TIME := start_hour;
+BEGIN
+
+    WHILE session_hour < end_hour LOOP
+        IF NOT is_joining_session(floor_number, room_number, session_date, session_hour, employee_id)
+            RETURN FALSE;
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+    RETURN TRUE;
+
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION is_booker_of_session(
+    floor_number INT,
+    room_number INT,
+    session_date_ DATE, -- named with a trailing underscore to avoid naming clash
+    session_hour TIME,
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT
+        s.booker_id = employee_id
+    FROM
+        meeting_sessions s
+    WHERE
+        s.building_floor = floor_number
+        AND s.room = room_number
+        AND s.session_date = session_date_
+        AND s.session_time = session_hour;
+
+$$ LANGUAGE sql;
+
+/**
+ * Checks if the given employee is the booker of all the sessions in the duration.
+ */
+CREATE OR REPLACE FUNCTION is_booker_of_entire_duration(
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    end_hour TIME,
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    session_hour TIME := start_hour;
+BEGIN
+
+    WHILE session_hour < end_hour LOOP
+        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id)
+            RETURN FALSE;
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;
+    RETURN TRUE;
+
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION is_employee_of_same_department_as_room(
+    floor_number INT,
+    room_number INT,
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            meeting_rooms r
+            INNER JOIN employees e ON
+                r.did = e.did
+        WHERE
+            r.building_floor = floor_number
+            AND r.room = room_number
+            AND e.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
