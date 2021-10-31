@@ -642,7 +642,38 @@ $$ LANGUAGE plpgsql;
 
 -- CREATE OR REPLACE FUNCTION non_compliance
 
--- CREATE OR REPLACE FUNCTION view_booking_report
+/**
+ * Finds all the meeting rooms that are booked by the given employee from the given start date onwards.
+ * The approval status is returned as well. The rows are sorted in ascending order by date, and then by time.
+ */
+CREATE OR REPLACE FUNCTION view_booking_report(
+    start_date_ DATE, -- named with a trailing underscore because start_date seems like a postgresql keyword
+    employee_id INT
+)
+RETURNS TABLE(
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    is_approved BOOLEAN
+) AS $$
+
+    SELECT
+        s.building_floor AS floor_number,
+        s.room AS room_number,
+        s.session_date AS session_date,
+        s.session_time AS start_hour,
+        (s.endorser_id IS NOT NULL) AS is_approved
+    FROM
+        meeting_sessions s
+    WHERE
+        s.session_date >= start_date_
+        AND s.booker_id = employee_id
+    ORDER BY
+        s.session_date ASC,
+        s.session_time ASC;
+
+$$ LANGUAGE sql;
 
 -- CREATE OR REPLACE FUNCTION view_future_meeting
 
