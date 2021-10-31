@@ -48,7 +48,7 @@ RETURNS BOOLEAN AS $$
         SELECT
             1
         FROM
-            managers m
+            manager m
         WHERE
             m.eid = employee_id
     );
@@ -93,7 +93,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_existing_session(floor_number, room_number, meeting_date, session_hour)
+        IF NOT is_existing_session(floor_number, room_number, meeting_date, session_hour) THEN
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -164,7 +164,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_joining_session(floor_number, room_number, session_date, session_hour, employee_id)
+        IF NOT is_joining_session(floor_number, room_number, session_date, session_hour, employee_id) THEN
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -212,7 +212,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id)
+        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id) THEN 
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -456,7 +456,7 @@ CREATE OR REPLACE FUNCTION search_room (
         END LOOP;
         CLOSE tableCursor;
     END;
-$$ LANGUAGE plpgsql 
+$$ LANGUAGE plpgsql; 
 
 -- CREATE OR REPLACE FUNCTION book_room
 
@@ -522,7 +522,7 @@ BEGIN
     END IF;
 
     IF NOT is_joining_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id) THEN
-        RAISE EXCEPTION 'If the employee was originally joining some session within the duration, '
+        RAISE EXCEPTION 'If the employee was originally joining some session within the duration,'
                 || 'then they must have been originally joining all the sessions within the duration '
                 || 'to leave them all.';
     END IF;
@@ -537,7 +537,7 @@ BEGIN
     IF is_booker_of_some_session
             AND NOT is_booker_of_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour,
                     employee_id) THEN
-        RAISE EXCEPTION 'If the employee is the booker of some session within the duration, '
+        RAISE EXCEPTION 'If the employee is the booker of some session within the duration,'
                 || 'then they must be the booker of all the sessions within the duration '
                 || 'to leave them all.';
     END IF;
@@ -630,7 +630,28 @@ $$ LANGUAGE plpgsql;
  * HEALTH
  **************************************/
 
--- CREATE OR REPLACE FUNCTION declare_health
+CREATE OR REPLACE PROCEDURE declare_health (
+    IN employee_id INTEGER,
+    IN declaration_date DATE,
+    IN temperature NUMERIC) 
+AS $$
+BEGIN 
+    IF NOT (is_existing_employee(employee_id)) THEN 
+        RAISE EXCEPTION 'Employee does not exist';
+    END IF;
+
+    IF temperature < 34 OR temperature > 43 THEN 
+        RAISE EXCEPTION 'Please Enter a valid temperature range (between 34C to 43C)';
+    END IF;
+
+    IF declaration_date > CURRENT_DATE THEN
+        RAISE EXCEPTION 'Please enter the current date or an earlier date';
+    END IF;
+
+    INSERT INTO health_declaration VALUES (employee_id,declaration_date,temperature);
+END;
+$$ LANGUAGE plpgsql
+
 
 -- CREATE OR REPLACE FUNCTION contact_tracing
 
