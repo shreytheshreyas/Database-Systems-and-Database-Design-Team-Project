@@ -644,7 +644,9 @@ $$ LANGUAGE plpgsql;
 
 /**
  * Finds all the meeting rooms that are booked by the given employee from the given start date onwards.
- * The approval status is returned as well. The rows are sorted in ascending order by date, and then by time.
+ * Particularly, it finds the meeting sessions the employee has booked from the given date onwards and the meeting rooms
+ * that they occur in. The approval status is returned as well. The rows are sorted in ascending order by date, and then
+ * in ascending order by time.
  */
 CREATE OR REPLACE FUNCTION view_booking_report(
     start_date_ DATE, -- named with a trailing underscore because start_date seems like a postgresql keyword
