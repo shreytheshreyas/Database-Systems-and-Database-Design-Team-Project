@@ -244,6 +244,19 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION is_on_the_hour(
+    time_to_check TIME
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT
+        date_trunc('hour', t.timestamp_to_check) = t.timestamp_to_check
+    FROM
+        (SELECT
+            CURRENT_DATE + time_to_check AS timestamp_to_check) t;
+
+$$ LANGUAGE sql;
+
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
