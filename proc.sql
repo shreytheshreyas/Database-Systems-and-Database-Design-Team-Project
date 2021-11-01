@@ -503,6 +503,10 @@ BEGIN
         RAISE EXCEPTION 'This employee is already retired.';
     END IF;
 
+    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        RAISE EXCEPTION 'All hours must be on the hour.';
+    END IF;
+
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
@@ -602,6 +606,10 @@ BEGIN
 
     IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
+    END IF;
+
+    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        RAISE EXCEPTION 'All hours must be on the hour.';
     END IF;
 
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
