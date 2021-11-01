@@ -252,15 +252,15 @@ $$ LANGUAGE sql;
  * TRIGGERS
  **************************************/
 
- CREATE OR REPLACE FuNCTION block_delete_employees()
- RETURNS TRIGGER AS $$
- BEGIN
+CREATE OR REPLACE FuNCTION block_delete_employees()
+RETURNS TRIGGER AS $$
+BEGIN
     
     RAISE EXCEPTION 'No employee record can be deleted; this is to facilitate contact tracing.';
     RETURN NULL;
 
- END;
- $$ LANGUAGE plpgsql;
+END;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS employee_deletion ON employees;
 CREATE TRIGGER employee_deletion
@@ -268,23 +268,41 @@ BEFORE DELETE ON employees
 FOR EACH STATEMENT
 EXECUTE FUNCTION block_delete_employees();
 
- CREATE OR REPLACE FuNCTION check_not_resigned_health_declaration()
- RETURNS TRIGGER AS $$
- BEGIN
+CREATE OR REPLACE FuNCTION check_not_resigned_health_declaration()
+RETURNS TRIGGER AS $$
+BEGIN
     
     IF is_retired_employee(NEW.eid) THEN
         RAISE EXCEPTION 'An employee that has resigned cannot make a health declaration.';
     END IF;
     RETURN NEW;
 
- END;
- $$ LANGUAGE plpgsql;
+END;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS not_resigned_health_declaration ON health_declaration;
 CREATE TRIGGER not_resigned_health_declaration
 BEFORE INSERT ON health_declaration
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_health_declaration();
+
+CREATE OR REPLACE FuNCTION check_not_resigned_session_booker()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    IF is_retired_employee(NEW.eid) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot book a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS not_resigned_session_booker ON meeting_sessions;
+CREATE TRIGGER not_resigned_session_booker
+BEFORE INSERT ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_session_booker();
 
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
