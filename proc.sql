@@ -535,9 +535,9 @@ BEGIN
     END IF;
 
     IF NOT is_joining_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id) THEN
-        RAISE EXCEPTION 'If the employee was originally joining some session within the duration,'
-                || 'then they must have been originally joining all the sessions within the duration '
-                || 'to leave them all.';
+        RAISE EXCEPTION 'If the employee was originally joining some session within the duration, '
+                'then they must have been originally joining all the sessions within the duration '
+                'to leave them all.';
     END IF;
 
     session_hour := start_hour;
@@ -550,9 +550,9 @@ BEGIN
     IF is_booker_of_some_session
             AND NOT is_booker_of_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour,
                     employee_id) THEN
-        RAISE EXCEPTION 'If the employee is the booker of some session within the duration,'
-                || 'then they must be the booker of all the sessions within the duration '
-                || 'to leave them all.';
+        RAISE EXCEPTION 'If the employee is the booker of some session within the duration, '
+                'then they must be the booker of all the sessions within the duration '
+                'to leave them all.';
     END IF;
 
     IF is_booker_of_some_session THEN
