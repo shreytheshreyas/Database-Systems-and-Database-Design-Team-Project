@@ -244,19 +244,6 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
-CREATE OR REPLACE FUNCTION is_on_the_hour(
-    time_to_check TIME
-)
-RETURNS BOOLEAN AS $$
-
-    SELECT
-        date_trunc('hour', t.timestamp_to_check) = t.timestamp_to_check
-    FROM
-        (SELECT
-            CURRENT_DATE + time_to_check AS timestamp_to_check) t;
-
-$$ LANGUAGE sql;
-
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
@@ -438,10 +425,6 @@ CREATE OR REPLACE FUNCTION search_room (
         IF availability_date <= CURRENT_DATE THEN 
             RAISE EXCEPTION 'Please enter a valid date';
         END IF;
-
-        IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
-            RAISE EXCEPTION 'All hours must be exactly on the hour.';
-        END IF;
         
         OPEN tableCursor;
         LOOP
@@ -507,10 +490,6 @@ BEGIN
         RAISE EXCEPTION 'This employee is already retired.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
-        RAISE EXCEPTION 'All hours must be exactly on the hour.';
-    END IF;
-
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
@@ -543,9 +522,9 @@ BEGIN
     END IF;
 
     IF NOT is_joining_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id) THEN
-        RAISE EXCEPTION 'If the employee was originally joining some session within the duration, '
-                'then they must have been originally joining all the sessions within the duration '
-                'to leave them all.';
+        RAISE EXCEPTION 'If the employee was originally joining some session within the duration,'
+                || 'then they must have been originally joining all the sessions within the duration '
+                || 'to leave them all.';
     END IF;
 
     session_hour := start_hour;
@@ -558,9 +537,9 @@ BEGIN
     IF is_booker_of_some_session
             AND NOT is_booker_of_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour,
                     employee_id) THEN
-        RAISE EXCEPTION 'If the employee is the booker of some session within the duration, '
-                'then they must be the booker of all the sessions within the duration '
-                'to leave them all.';
+        RAISE EXCEPTION 'If the employee is the booker of some session within the duration,'
+                || 'then they must be the booker of all the sessions within the duration '
+                || 'to leave them all.';
     END IF;
 
     IF is_booker_of_some_session THEN
@@ -610,10 +589,6 @@ BEGIN
 
     IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
-    END IF;
-
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
-        RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
