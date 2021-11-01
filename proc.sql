@@ -257,14 +257,14 @@ $$ LANGUAGE sql;
  BEGIN
     
     IF is_retired_employee(NEW.eid) THEN
-        RAISE EXCEPTION 'An employee that has resigned cannot make a health declaration.'
+        RAISE EXCEPTION 'An employee that has resigned cannot make a health declaration.';
     END IF;
     RETURN NEW;
 
  END;
  $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS not_resigned_health_declaration
+DROP TRIGGER IF EXISTS not_resigned_health_declaration ON health_declaration;
 CREATE TRIGGER not_resigned_health_declaration
 BEFORE INSERT ON health_declaration
 FOR EACH ROW
