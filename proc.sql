@@ -304,6 +304,24 @@ BEFORE INSERT ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_booker();
 
+CREATE OR REPLACE FuNCTION check_not_resigned_session_endorser()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    IF is_retired_employee(NEW.endorser_id) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot approve a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS not_resigned_session_endorser ON meeting_sessions;
+CREATE TRIGGER not_resigned_session_endorser
+BEFORE UPDATE ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_session_endorser();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
