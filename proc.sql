@@ -438,6 +438,10 @@ CREATE OR REPLACE FUNCTION search_room (
         IF availability_date <= CURRENT_DATE THEN 
             RAISE EXCEPTION 'Please enter a valid date';
         END IF;
+
+        IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+            RAISE EXCEPTION 'All hours must be exactly on the hour.';
+        END IF;
         
         OPEN tableCursor;
         LOOP
@@ -504,7 +508,7 @@ BEGIN
     END IF;
 
     IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
-        RAISE EXCEPTION 'All hours must be on the hour.';
+        RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
@@ -609,7 +613,7 @@ BEGIN
     END IF;
 
     IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
-        RAISE EXCEPTION 'All hours must be on the hour.';
+        RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
