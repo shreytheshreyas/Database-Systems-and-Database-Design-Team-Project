@@ -252,6 +252,22 @@ $$ LANGUAGE sql;
  * TRIGGERS
  **************************************/
 
+ CREATE OR REPLACE FuNCTION block_delete_employees()
+ RETURNS TRIGGER AS $$
+ BEGIN
+    
+    RAISE EXCEPTION 'No employee record can be deleted; this is to facilitate contact tracing.';
+    RETURN NULL;
+
+ END;
+ $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS employee_deletion ON employees;
+CREATE TRIGGER employee_deletion
+BEFORE DELETE ON employees
+FOR EACH STATEMENT
+EXECUTE FUNCTION block_delete_employees();
+
  CREATE OR REPLACE FuNCTION check_not_resigned_health_declaration()
  RETURNS TRIGGER AS $$
  BEGIN
