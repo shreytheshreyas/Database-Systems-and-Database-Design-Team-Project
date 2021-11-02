@@ -360,6 +360,24 @@ BEFORE DELETE ON joins
 FOR EACH ROW
 EXECUTE FUNCTION check_unapproved_meeting_session_exit();
 
+CREATE OR REPLACE FuNCTION check_meeting_session_endorser_employee_type()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    IF NEW.endorser_id IS NOT NULL AND NOT is_existing_manager(NEW.endorser_id) THEN
+        RAISE EXCEPTION 'Only managers can approve a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS meeting_session_endorser_employee_type ON meeting_sessions;
+CREATE TRIGGER meeting_session_endorser_employee_type
+BEFORE UPDATE ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_endorser_employee_type();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
