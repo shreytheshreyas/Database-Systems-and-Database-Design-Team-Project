@@ -345,8 +345,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     
     IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time)
-            AND NOT (is_retired_employee(OLD.eid) AND (OLD.session_date > CURRENT_DATE
-            OR (OLD.session_date = CURRENT_DATE AND OLD.session_time > CURRENT_TIME))) THEN
+            AND NOT (is_retired_employee(OLD.eid) AND (OLD.session_date + OLD.session_time) > CURRENT_TIMESTAMP) THEN
         RAISE EXCEPTION 'An employee cannot leave a meeting session that has already been approved, '
                 'unless the employee has resigned and the employee has not attended the meeting yet.';
     END IF;
@@ -595,24 +594,13 @@ BEGIN
         RAISE EXCEPTION 'This employee does not exist.';
     END IF;
 
-    IF is_retired_employee(employee_id) THEN
-        RAISE EXCEPTION 'This employee is already retired.';
-    END IF;
-
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
-    IF meeting_date < CURRENT_DATE || (meeting_date = CURRENT_DATE AND end_hour < CURRENT_TIME) THEN
-        RAISE EXCEPTION 'This meeting is already over.';
-    END IF;
-
-    IF meeting_date = CURRENT_DATE AND start_hour < CURRENT_TIME THEN
-        RAISE EXCEPTION 'This meeting has already started.';
-    END IF;
-
     WHILE session_hour < end_hour LOOP
-        IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
+        IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time)
+                AND NOT (is_retired_employee(employee_id) AND (meeting_date + start_hour) > CURRENT_TIMESTAMP) THEN
             RAISE EXCEPTION 'None of the sessions in the meeting must already be approved.';
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -704,12 +692,8 @@ BEGIN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
-    IF meeting_date < CURRENT_DATE || (meeting_date = CURRENT_DATE AND end_hour < CURRENT_TIME) THEN
-        RAISE EXCEPTION 'This meeting would have already been over.';
-    END IF;
-
-    IF meeting_date = CURRENT_DATE AND start_hour < CURRENT_TIME THEN
-        RAISE EXCEPTION 'This meeting would have already started.';
+    IF (meeting_date + start_hour) <= CURRENT_TIMESTAMP THEN
+        RAISE EXCEPTION 'This meeting would have already started or possibly even finished.';
     END IF;
 
     WHILE session_hour < end_hour LOOP
