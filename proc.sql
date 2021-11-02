@@ -340,6 +340,27 @@ BEFORE INSERT ON joins
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_participant();
 
+CREATE OR REPLACE FuNCTION check_unapproved_meeting_session_exit()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time)
+            AND NOT (is_retired_employee(OLD.eid) AND (OLD.session_date > CURRENT_DATE
+            OR (OLD.session_date = CURRENT_DATE AND OLD.session_time > CURRENT_TIME))) THEN
+        RAISE EXCEPTION 'An employee cannot leave a meeting session that has already been approved, '
+                'unless the employee has resigned and the employee has not attended the meeting yet.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS unapproved_meeting_session_exit ON joins;
+CREATE TRIGGER unapproved_meeting_session_exit
+BEFORE DELETE ON joins
+FOR EACH ROW
+EXECUTE FUNCTION check_unapproved_meeting_session_exit();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
