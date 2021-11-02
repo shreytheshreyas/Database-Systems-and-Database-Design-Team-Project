@@ -396,6 +396,22 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_unapproved_meeting_session_approval();
 
+CREATE OR REPLACE FuNCTION check_meeting_session_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    RAISE EXCEPTION 'The location, date, time, or booker cannot be changed.'
+    RETURN NULL;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS meeting_session_update ON meeting_sessions;
+CREATE TRIGGER meeting_session_update
+BEFORE UPDATE OF building_floor, room, session_date, session_time, booker_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_update();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
