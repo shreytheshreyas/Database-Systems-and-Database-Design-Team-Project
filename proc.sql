@@ -412,7 +412,7 @@ BEFORE UPDATE OF building_floor, room, session_date, session_time, booker_id ON 
 FOR EACH STATEMENT
 EXECUTE FUNCTION check_meeting_session_update();
 
-CREATE OR REPLACE FUNCTION check_meeting_session_approval_department()
+CREATE OR REPLACE FUNCTION check_meeting_session_approval_update_department()
 RETURNS TRIGGER AS $$
 BEGIN
 
@@ -424,11 +424,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS meeting_session_approval_department ON meeting_sessions;
-CREATE TRIGGER meeting_session_approval_department
+DROP TRIGGER IF EXISTS meeting_session_approval_update_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_approval_update_department
 BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
-EXECUTE FUNCTION check_meeting_session_approval_department();
+EXECUTE FUNCTION check_meeting_session_approval_update_department();
+
+CREATE OR REPLACE FUNCTION check_meeting_session_approval_insert_department()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NOT is_employee_of_same_department_as_room(NEW.building_floor, NEW.room, NEW.endorser_id) THEN
+        RAISE EXCEPTION 'The endorser must be a manager of the same department as the room.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS meeting_session_approval_insert_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_approval_insert_department
+BEFORE INSERT ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_approval_insert_department();
 
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
