@@ -378,6 +378,24 @@ BEFORE UPDATE ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_endorser_employee_type();
 
+CREATE OR REPLACE FuNCTION check_unapproved_meeting_session_approval()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    IF OLD.endorser_id IS NOT NULL THEN
+        RAISE EXCEPTION 'The endorser cannot be changed.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS unapproved_meeting_session_approval ON meeting_sessions;
+CREATE TRIGGER unapproved_meeting_session_approval
+BEFORE UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_unapproved_meeting_session_approval();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
