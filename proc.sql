@@ -412,7 +412,7 @@ BEFORE UPDATE OF building_floor, room, session_date, session_time, booker_id ON 
 FOR EACH STATEMENT
 EXECUTE FUNCTION check_meeting_session_update();
 
-CREATE OR REPLACE FUNCTION check_meeting_session_approval_update_department()
+CREATE OR REPLACE FUNCTION check_meeting_session_update_approval_department()
 RETURNS TRIGGER AS $$
 BEGIN
 
@@ -424,13 +424,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS meeting_session_approval_update_department ON meeting_sessions;
-CREATE TRIGGER meeting_session_approval_update_department
+DROP TRIGGER IF EXISTS meeting_session_update_approval_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_update_approval_department
 BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
-EXECUTE FUNCTION check_meeting_session_approval_update_department();
+EXECUTE FUNCTION check_meeting_session_update_approval_department();
 
-CREATE OR REPLACE FUNCTION check_meeting_session_approval_insert_department()
+CREATE OR REPLACE FUNCTION check_meeting_session_insert_approval_department()
 RETURNS TRIGGER AS $$
 BEGIN
 
@@ -442,11 +442,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS meeting_session_approval_insert_department ON meeting_sessions;
-CREATE TRIGGER meeting_session_approval_insert_department
+DROP TRIGGER IF EXISTS meeting_session_insert_approval_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_insert_approval_department
 BEFORE INSERT ON meeting_sessions
 FOR EACH ROW
-EXECUTE FUNCTION check_meeting_session_approval_insert_department();
+EXECUTE FUNCTION check_meeting_session_insert_approval_department();
+
+CREATE OR REPLACE FUNCTION check_meeting_session_not_started()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF (OLD.session_date + OLD.session_time) <= CURRENT_TIMESTAMP THEN
+        RAISE EXCEPTION 'This meeting session would have now already started or possibly even finished.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS meeting_session_not_started ON meeting_sessions;
+CREATE TRIGGER meeting_session_not_started
+BEFORE UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_not_started();
 
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
