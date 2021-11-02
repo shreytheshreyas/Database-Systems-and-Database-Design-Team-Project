@@ -212,7 +212,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id) THEN 
+        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id) THEN
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -252,10 +252,10 @@ $$ LANGUAGE sql;
  * TRIGGERS
  **************************************/
 
-CREATE OR REPLACE FuNCTION block_delete_employees()
+CREATE OR REPLACE FUNCTION block_delete_employees()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     RAISE EXCEPTION 'No employee record can be deleted; this is to facilitate contact tracing.';
     RETURN NULL;
 
@@ -268,10 +268,10 @@ BEFORE DELETE ON employees
 FOR EACH STATEMENT
 EXECUTE FUNCTION block_delete_employees();
 
-CREATE OR REPLACE FuNCTION check_not_resigned_health_declaration()
+CREATE OR REPLACE FUNCTION check_not_resigned_health_declaration()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF is_retired_employee(NEW.eid) THEN
         RAISE EXCEPTION 'An employee that has resigned cannot make a health declaration.';
     END IF;
@@ -286,10 +286,10 @@ BEFORE INSERT ON health_declaration
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_health_declaration();
 
-CREATE OR REPLACE FuNCTION check_not_resigned_session_booker()
+CREATE OR REPLACE FUNCTION check_not_resigned_session_booker()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF is_retired_employee(NEW.booker_id) THEN
         RAISE EXCEPTION 'An employee that has resigned cannot book a meeting session.';
     END IF;
@@ -304,10 +304,10 @@ BEFORE INSERT ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_booker();
 
-CREATE OR REPLACE FuNCTION check_not_resigned_session_endorser()
+CREATE OR REPLACE FUNCTION check_not_resigned_session_endorser()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF is_retired_employee(NEW.endorser_id) THEN
         RAISE EXCEPTION 'An employee that has resigned cannot approve a meeting session.';
     END IF;
@@ -318,14 +318,14 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS not_resigned_session_endorser ON meeting_sessions;
 CREATE TRIGGER not_resigned_session_endorser
-BEFORE INSERT OR UPDATE ON meeting_sessions
+BEFORE INSERT OR UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_endorser();
 
-CREATE OR REPLACE FuNCTION check_not_resigned_session_participant()
+CREATE OR REPLACE FUNCTION check_not_resigned_session_participant()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF is_retired_employee(NEW.eid) THEN
         RAISE EXCEPTION 'An employee that has resigned cannot join a meeting session.';
     END IF;
@@ -340,10 +340,10 @@ BEFORE INSERT ON joins
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_participant();
 
-CREATE OR REPLACE FuNCTION check_unapproved_meeting_session_exit()
+CREATE OR REPLACE FUNCTION check_unapproved_meeting_session_exit()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time)
             AND NOT (is_retired_employee(OLD.eid) AND (OLD.session_date + OLD.session_time) > CURRENT_TIMESTAMP) THEN
         RAISE EXCEPTION 'An employee cannot leave a meeting session that has already been approved, '
@@ -360,10 +360,10 @@ BEFORE DELETE ON joins
 FOR EACH ROW
 EXECUTE FUNCTION check_unapproved_meeting_session_exit();
 
-CREATE OR REPLACE FuNCTION check_meeting_session_endorser_employee_type()
+CREATE OR REPLACE FUNCTION check_meeting_session_endorser_employee_type()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF NEW.endorser_id IS NOT NULL AND NOT is_existing_manager(NEW.endorser_id) THEN
         RAISE EXCEPTION 'Only managers can approve a meeting session.';
     END IF;
@@ -374,14 +374,14 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS meeting_session_endorser_employee_type ON meeting_sessions;
 CREATE TRIGGER meeting_session_endorser_employee_type
-BEFORE UPDATE ON meeting_sessions
+BEFORE INSERT OR UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_endorser_employee_type();
 
-CREATE OR REPLACE FuNCTION check_unapproved_meeting_session_approval()
+CREATE OR REPLACE FUNCTION check_unapproved_meeting_session_approval()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     IF OLD.endorser_id IS NOT NULL THEN
         RAISE EXCEPTION 'The endorser cannot be changed.';
     END IF;
@@ -396,10 +396,10 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_unapproved_meeting_session_approval();
 
-CREATE OR REPLACE FuNCTION check_meeting_session_update()
+CREATE OR REPLACE FUNCTION check_meeting_session_update()
 RETURNS TRIGGER AS $$
 BEGIN
-    
+
     RAISE EXCEPTION 'The location, date, time, or booker cannot be changed.'
     RETURN NULL;
 
@@ -409,8 +409,26 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS meeting_session_update ON meeting_sessions;
 CREATE TRIGGER meeting_session_update
 BEFORE UPDATE OF building_floor, room, session_date, session_time, booker_id ON meeting_sessions
-FOR EACH ROW
+FOR EACH STATEMENT
 EXECUTE FUNCTION check_meeting_session_update();
+
+CREATE OR REPLACE FUNCTION check_meeting_session_approval_department()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NOT is_employee_of_same_department_as_room(OLD.building_floor, OLD.room, NEW.endorser_id) THEN
+        RAISE EXCEPTION 'The endorser must be a manager of the same department as the room.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS meeting_session_approval_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_approval_department
+BEFORE UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_approval_department();
 
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
