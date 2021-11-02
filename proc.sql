@@ -354,10 +354,10 @@ FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_participant();
 
 /**
- * Constraint 23(a)
- * "Once approved, there should be no more changes in the participants ..."
- * Note that constraint 23(b), "... the participants will definitely come to the meeting on the stipulated day"
- * is not enforced by this trigger. If necessary, constraint 23(b) could possibly be enforced by another trigger.
+ * Constraint 23
+ * "Once approved, there should be no more changes in the participants and the participants will definitely come to the
+ * meeting on the stipulated day"
+ * Note that increases in participants is not enforced by this trigger, only decreases.
  */
 CREATE OR REPLACE FUNCTION check_unapproved_meeting_session_exit()
 RETURNS TRIGGER AS $$
