@@ -322,6 +322,24 @@ BEFORE INSERT OR UPDATE ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_not_resigned_session_endorser();
 
+CREATE OR REPLACE FuNCTION check_not_resigned_session_participant()
+RETURNS TRIGGER AS $$
+BEGIN
+    
+    IF is_retired_employee(NEW.eid) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot join a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS not_resigned_session_participant ON joins;
+CREATE TRIGGER not_resigned_session_participant
+BEFORE INSERT ON joins
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_session_participant();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
