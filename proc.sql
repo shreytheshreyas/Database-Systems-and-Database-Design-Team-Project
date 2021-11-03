@@ -11,7 +11,41 @@
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
+/**
+ * returns True when meeting room is already at
+ * maximum capacity
+ */
+CREATE OR REPLACE FUNCTION is_meeting_session_full (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+)
+RETURNS BOOLEAN AS $$ 
+DECLARE
+    capacity INT := (
+        SELECT updated_new_cap
+        FROM meeting_rooms r
+        WHERE floor_number = r.building_floor
+        AND room_number = r.room
+    ); --if storing old record, just sieve out latest date
 
+    current_attendance INT := (
+        SELECT COUNT(*)
+        FROM joins j
+        WHERE j.room = room_number
+        AND j.building_floor = floor_number
+        AND j.session_date = session_date
+        AND j.session _time = start_hour
+    );
+
+BEGIN
+    IF current_attendance = capacity THEN
+        RETURN TRUE;
+    END IF;    
+    RETURN FALSE;
+END;
+$$ LANGUAGE sql;
 /***************************************
  * TRIGGERS
  **************************************/
