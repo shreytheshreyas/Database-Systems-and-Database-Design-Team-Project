@@ -180,6 +180,10 @@ BEGIN
         RAISE EXCEPTION 'Meeting is currently/has already occurred.';
     END IF;
 
+    IF (is_meeting_session_full(floor_number, room_number, session_date, start_hour)) THEN
+        RAISE EXCEPTION 'The meeting room is already full.'
+    END IF;
+
     -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
     -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
     -- would aggregation help (2.4 in ER pdf)
