@@ -266,8 +266,9 @@ AS $$
         AND j.building_floor = m.building_floor
         AND j.session_date = m.session_date
         AND j.session_time = m.session_time
-        AND j.session_date > session_date_ -- not inclusive of given session date
-        -- AND endorser_id IS NOT NULL
+        AND j.session_date >= session_date_ -- not inclusive of given session date
+        AND endorser_id IS NOT NULL
+        ORDER BY j.session_date, j.session_time
         ;
 
     END;
