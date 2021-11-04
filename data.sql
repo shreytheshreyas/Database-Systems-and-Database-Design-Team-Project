@@ -179,3 +179,17 @@ insert into junior (eid) values (57);
 insert into junior (eid) values (58);
 insert into junior (eid) values (59);
 insert into junior (eid) values (60);
+
+-- meeting_rooms
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (1, 1, 'ornare', 0, 10, null);
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (1, 2, 'vestibulum', 1, 8, '28/10/2021');
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (1, 3, 'donec ut', 2, 8, null);
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (1, 4, 'platea', 3, 2, '1/11/2021');
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (2, 1, 'ultrices posuere', 4, 50, null);
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (2, 2, 'magna at nunc', 5, 2, null);
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (2, 3, 'curabitur', 6, 5, null);
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (2, 4, 'ante nulla justo', 7, 50, '31/10/2021');
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 1, 'sit amet diam', 8, 2, null);
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 2, 'ac diam', 9, 5, '28/10/2021');
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 3, 'sociis natoque', 0, 5, '31/10/2021');
+insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 4, 'ullamcorper purus sit', 1, 50, null);
