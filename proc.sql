@@ -247,6 +247,21 @@ $$ LANGUAGE sql;
 -- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
 
 
+/**
+ * Returns true when selected employee has a fever
+ */
+CREATE OR REPLACE FUNCTION has_fever_employee (
+	employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM health_declaration h
+        WHERE h.eid = employee_id
+        AND fever = true
+    );
+$$ LANGUAGE sql;
 
 /***************************************
  * TRIGGERS
