@@ -193,3 +193,27 @@ insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, up
 insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 2, 'ac diam', 9, 5, '28/10/2021');
 insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 3, 'sociis natoque', 0, 5, '31/10/2021');
 insert into meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) values (3, 4, 'ullamcorper purus sit', 1, 50, null);
+
+-- meeting sessions
+-- past
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 3, '27/10/2021'::DATE, '11:00'::TIME, 10, 7);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 1, '29/10/2021'::DATE, '11:00'::TIME, 3, 5);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 1, '28/10/2021'::DATE, '10:00'::TIME, 2, 39);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 3, '29/10/2021'::DATE, '17:00'::TIME, 16, 1);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (1, 3, '2/11/2021'::DATE, '15:00'::TIME, 46, 3);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 3, '30/10/2021'::DATE, '17:00'::TIME, 9, 31);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 1, '29/10/2021'::DATE, '12:00'::TIME, 39, 35);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 1, '3/11/2021'::DATE, '9:00'::TIME, 14, 5);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 1, '28/10/2021'::DATE, '17:00'::TIME, 41, 35);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 1, '30/10/2021'::DATE, '18:00'::TIME, 2, 9);
+-- future
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (1, 1, '15/11/2021'::DATE, '15:00'::TIME, 46, null);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (1, 1, '19/11/2021'::DATE, '13:00'::TIME, 12, 31);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 3, '17/11/2021'::DATE, '12:00'::TIME, 6, 7);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 1, '23/11/2021'::DATE, '12:00'::TIME, 10, null);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 4, '13/11/2021'::DATE, '14:00'::TIME, 7, 32);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 4, '12/11/2021'::DATE, '16:00'::TIME, 14, null);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 4, '17/11/2021'::DATE, '16:00'::TIME, 5, 2);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (1, 1, '16/11/2021'::DATE, '12:00'::TIME, 45, null);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (2, 4, '11/11/2021'::DATE, '12:00'::TIME, 17, null);
+insert into meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) values (3, 1, '13/11/2021'::DATE, '8:00'::TIME, 12, 39);
