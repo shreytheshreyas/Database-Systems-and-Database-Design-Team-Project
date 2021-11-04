@@ -244,10 +244,44 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
--- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
-
 
 /**
+ * returns True when meeting room is already at
+ * maximum capacity
+ */
+CREATE OR REPLACE FUNCTION is_meeting_session_full (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+)
+RETURNS BOOLEAN AS $$ 
+DECLARE
+    capacity INT := (
+        SELECT updated_new_cap
+        FROM meeting_rooms r
+        WHERE floor_number = r.building_floor
+        AND room_number = r.room
+    ); --if storing old record, just sieve out latest date
+
+    current_attendance INT := (
+        SELECT COUNT(*)
+        FROM joins j
+        WHERE j.room = room_number
+        AND j.building_floor = floor_number
+        AND j.session_date = session_date
+        AND j.session _time = start_hour
+    );
+
+BEGIN
+    IF current_attendance = capacity THEN
+        RETURN TRUE;
+    END IF;    
+    RETURN FALSE;
+END;
+$$ LANGUAGE sql;
+
+/*
  * Returns true when selected employee has a fever
  */
 CREATE OR REPLACE FUNCTION has_fever_employee (
@@ -482,7 +516,56 @@ $$ LANGUAGE plpgsql;
 
 -- CREATE OR REPLACE FUNCTION unbook_room
 
--- CREATE OR REPLACE FUNCTION join_meeting
+CREATE OR REPLACE FUNCTION join_meeting (
+    IN room_number INT,
+    IN floor_number INT,
+    IN session_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN eid INT
+    )
+RETURNS VOID AS $$
+
+DECLARE 
+    temp_time TIME := start_hour;
+    
+BEGIN
+
+    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
+        RAISE EXCEPTION 'Meeting session does not exist.';
+    END IF;
+
+    IF (is_approved_session(floor_number, room_number, session_date, start_hour)) THEN
+        RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
+    END IF;
+
+    IF (is_retired_employee(eid)) THEN
+        RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
+    END IF;
+
+    IF (has_fever_employee(eid)) THEN
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+    END IF;
+
+    IF NOT (session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND start_hour > CURRENT_TIME)) THEN 
+        RAISE EXCEPTION 'Meeting is currently/has already occurred.';
+    END IF;
+
+    IF (is_meeting_session_full(floor_number, room_number, session_date, start_hour)) THEN
+        RAISE EXCEPTION 'The meeting room is already full.'
+    END IF;
+
+    -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
+    -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
+    -- would aggregation help (2.4 in ER pdf)
+    WHILE temp_time < end_hour LOOP
+        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time);
+        temp_time := temp_time + INTERVAL '1 hour';
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+
 
 /**
  * Causes the employee with the given employee_id to leave the meeting with the given parameters.
