@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS employees, junior, booker, senior, manager, health_declaration,
+    DROP TABLE IF EXISTS employees, junior, booker, senior, manager, health_declaration,
 departments, meeting_rooms, meeting_sessions, joins CASCADE;
 
 --Employees
@@ -7,9 +7,12 @@ CREATE TABLE employees(
     eid SERIAL CONSTRAINT employees_pk PRIMARY KEY,
     ename TEXT,
     email TEXT GENERATED ALWAYS AS ('xyz' || CAST (eid AS TEXT) || '@company.com') STORED,-- UNIQUE constraint is implicit because of GENERATED ALWAYS 
-    contact JSON NOT NULL,
+    ekind TEXT,
+    did INTEGER NOT NULL DEFAULT 0,
     resigned_date DATE DEFAULT NULL,
-    did INTEGER NOT NULL DEFAULT 0
+    mobile_contact INTEGER,
+    home_contact INTEGER,
+    office_contact INTEGER
 );
 
 CREATE TABLE junior(
@@ -83,7 +86,7 @@ CREATE TABLE meeting_sessions(
     booker_id INTEGER DEFAULT NULL,
     endorser_id INTEGER DEFAULT NULL, 
     CONSTRAINT meeting_sessions_pk PRIMARY KEY(room,building_floor,session_date,session_time),
-    CONSTRAINT session_meeting_room_fk_constraint FOREIGN KEY (room,building_floor) REFERENCES meeting_rooms(room,building_floor),
+    CONSTRAINT session_meeting_room_fk_constraint FOREIGN KEY (room,building_floor) REFERENCES meeting_rooms(room,building_floor) ON DELETE CASCADE,
     CONSTRAINT session_booker_fk_constraint FOREIGN KEY (booker_id) REFERENCES booker(eid),
     CONSTRAINT endorser_id_fk_constraint FOREIGN KEY (endorser_id) REFERENCES manager(eid)
 );
@@ -99,7 +102,7 @@ CREATE TABLE joins(
     session_time TIME,
     CONSTRAINT joins_pk PRIMARY KEY(eid,room,building_floor,session_date,session_time),
     CONSTRAINT joins_employee_fk_constraint FOREIGN KEY (eid) REFERENCES employees(eid),
-    CONSTRAINT joins_meeting_sessions_fk_constraint FOREIGN KEY (room,building_floor,session_date,session_time) REFERENCES meeting_sessions(room,building_floor,session_date,session_time),
+    CONSTRAINT joins_meeting_sessions_fk_constraint FOREIGN KEY (room,building_floor,session_date,session_time) REFERENCES meeting_sessions(room,building_floor,session_date,session_time) ON DELETE CASCADE,
     CONSTRAINT valid_meeting_entry CHECK(session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND session_time > CURRENT_TIME))
 );
 
