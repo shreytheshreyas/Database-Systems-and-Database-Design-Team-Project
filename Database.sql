@@ -10,9 +10,9 @@ CREATE TABLE employees(
     ekind TEXT,
     did INTEGER NOT NULL DEFAULT 0,
     resigned_date DATE DEFAULT NULL,
-    mobile_contact INTEGER,
-    home_contact INTEGER,
-    office_contact INTEGER
+    mobile_contact TEXT,
+    home_contact TEXT,
+    office_contact TEXT
 );
 
 CREATE TABLE junior(
@@ -83,7 +83,7 @@ CREATE TABLE meeting_sessions(
     building_floor INTEGER,
     session_date DATE,
     session_time TIME,
-    booker_id INTEGER DEFAULT NULL,
+    booker_id INTEGER NOT NULL,
     endorser_id INTEGER DEFAULT NULL, 
     CONSTRAINT meeting_sessions_pk PRIMARY KEY(room,building_floor,session_date,session_time),
     CONSTRAINT session_meeting_room_fk_constraint FOREIGN KEY (room,building_floor) REFERENCES meeting_rooms(room,building_floor) ON DELETE CASCADE,
@@ -102,8 +102,7 @@ CREATE TABLE joins(
     session_time TIME,
     CONSTRAINT joins_pk PRIMARY KEY(eid,room,building_floor,session_date,session_time),
     CONSTRAINT joins_employee_fk_constraint FOREIGN KEY (eid) REFERENCES employees(eid),
-    CONSTRAINT joins_meeting_sessions_fk_constraint FOREIGN KEY (room,building_floor,session_date,session_time) REFERENCES meeting_sessions(room,building_floor,session_date,session_time),
-    CONSTRAINT valid_meeting_entry CHECK(session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND session_time > CURRENT_TIME))
+    CONSTRAINT joins_meeting_sessions_fk_constraint FOREIGN KEY (room,building_floor,session_date,session_time) REFERENCES meeting_sessions(room,building_floor,session_date,session_time)
 );
 
 --Other Constraints 
