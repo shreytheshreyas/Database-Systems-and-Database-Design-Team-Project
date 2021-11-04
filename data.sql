@@ -185,7 +185,7 @@ INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, up
 INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (1, 2, 'vestibulum', 1, 8, '28/10/2021');
 INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (1, 3, 'donec ut', 2, 8, null);
 INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (1, 4, 'platea', 3, 2, '1/11/2021');
-INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (2, 1, 'ultrices posuere', 4, 50, null);
+INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (2, 1, 'ornare', 4, 50, null); --     same room name
 INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (2, 2, 'magna at nunc', 5, 2, null);
 INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (2, 3, 'curabitur', 6, 5, null);
 INSERT INTO meeting_rooms (building_floor, room, rname, did, updated_new_cap, updated_date) VALUES (2, 4, 'ante nulla justo', 7, 50, '31/10/2021');
@@ -203,7 +203,11 @@ INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, 
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (1, 3, '7/11/2021'::DATE, '15:00'::TIME, 46, 3); -- 8
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 3, '4/11/2021'::DATE, '17:00'::TIME, 39, 31); -- 5
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '3/11/2021'::DATE, '12:00'::TIME, 39, 35); -- 50
-INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '8/11/2021'::DATE, '9:00'::TIME, 14, 5); -- 50
+
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '8/11/2021'::DATE, '9:00'::TIME, 14, 5); -- 50, 3h meeting
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '8/11/2021'::DATE, '10:00'::TIME, 14, 5);
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '8/11/2021'::DATE, '11:00'::TIME, 14, 5); 
+
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '2/11/2021'::DATE, '17:00'::TIME, 41, 35); -- 50
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 1, '4/11/2021'::DATE, '18:00'::TIME, 5, 9); -- 2
 -- future meeting sessions
@@ -213,7 +217,12 @@ INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, 
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 1, '23/11/2021'::DATE, '12:00'::TIME, 10, null); -- 2
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 4, '13/11/2021'::DATE, '14:00'::TIME, 7, 32); -- 50
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 4, '12/11/2021'::DATE, '16:00'::TIME, 14, null); -- 50
-INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 4, '17/11/2021'::DATE, '16:00'::TIME, 2, 2); -- 50
+
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 4, '17/11/2021'::DATE, '16:00'::TIME, 2, 2); -- 50, 2h meeting
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 4, '17/11/2021'::DATE, '17:00'::TIME, 2, 2); 
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (1, 1, '17/11/2021'::DATE, '16:00'::TIME, 10, 2); -- 50, 2h meeting
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (1, 1, '17/11/2021'::DATE, '17:00'::TIME, 10, 2); 
+
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (1, 1, '16/11/2021'::DATE, '12:00'::TIME, 45, null); -- 10
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 4, '11/11/2021'::DATE, '12:00'::TIME, 17, null); -- 50
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 1, '13/11/2021'::DATE, '8:00'::TIME, 12, 39); -- 2
@@ -255,10 +264,20 @@ INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (49, 2, 1, '3/11/2021'::DATE, '12:00'::TIME);
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (14, 2, 1, '8/11/2021'::DATE, '9:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (14, 2, 1, '8/11/2021'::DATE, '10:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (14, 2, 1, '8/11/2021'::DATE, '11:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (20, 2, 1, '8/11/2021'::DATE, '9:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (20, 2, 1, '8/11/2021'::DATE, '10:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (20, 2, 1, '8/11/2021'::DATE, '11:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (39, 2, 1, '8/11/2021'::DATE, '9:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (39, 2, 1, '8/11/2021'::DATE, '10:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (39, 2, 1, '8/11/2021'::DATE, '11:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (43, 2, 1, '8/11/2021'::DATE, '9:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (43, 2, 1, '8/11/2021'::DATE, '10:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (43, 2, 1, '8/11/2021'::DATE, '11:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (3, 2, 1, '8/11/2021'::DATE, '9:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (3, 2, 1, '8/11/2021'::DATE, '10:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (3, 2, 1, '8/11/2021'::DATE, '11:00'::TIME);
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (41, 2, 1, '2/11/2021'::DATE, '17:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (10, 2, 1, '2/11/2021'::DATE, '17:00'::TIME);
@@ -291,6 +310,11 @@ INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (14, 3, 4, '12/11/2021'::DATE, '16:00'::TIME);
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (2, 3, 4, '17/11/2021'::DATE, '16:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (2, 3, 4, '17/11/2021'::DATE, '17:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (10, 1, 1, '17/11/2021'::DATE, '16:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (10, 1, 1, '17/11/2021'::DATE, '17:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (40, 3, 4, '17/11/2021'::DATE, '16:00'::TIME); -- emp 40 partially joins
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (40, 1, 1, '17/11/2021'::DATE, '17:00'::TIME); -- emp 40 partially joins
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (45, 1, 1, '16/11/2021'::DATE, '12:00'::TIME);
 
