@@ -820,6 +820,26 @@ RETURNS TABLE(
 
 $$ LANGUAGE sql;
 
--- CREATE OR REPLACE FUNCTION view_future_meeting
+CREATE OR REPLACE FUNCTION view_future_meeting (
+    session_date_ DATE,
+    employee_id INT
+)
+RETURNS TABLE (floor_number INT, room_number INT, session_date DATE, start_hour TIME)
+AS $$
+    BEGIN
+        SELECT j.floor_number, j.room_number, j.session_date, j.session_time
+        FROM meeting_sessions m, joins j
+        WHERE j.eid = employee_id
+        AND j.room = m.room
+        AND j.building_floor = m.building_floor
+        AND j.session_date = m.session_date
+        AND j.session_time = m.session_time
+        AND j.session_date >= session_date_ -- not inclusive of given session date
+        AND endorser_id IS NOT NULL
+        ORDER BY j.session_date, j.session_time
+        ;
+
+    END;
+$$ LANGUAGE plpgsql
 
 -- CREATE OR REPLACE FUNCTION view_manager_report
