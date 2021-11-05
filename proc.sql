@@ -304,13 +304,6 @@ $$ LANGUAGE sql;
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
 
-DROP TRIGGER IF EXISTS employee_has_fever
-CREATE TRIGGER employee_has_fever
-AFTER INSERT ON health_declaration
-FOR EACH ROW
-WHEN (NEW.fever = true)
-EXECUTE FUNCTION contact_tracing_procedure();
-
 /***************************************
  * BASIC
  **************************************/
@@ -528,12 +521,7 @@ RETURNS VOID AS $$
 
 DECLARE 
     temp_time TIME := start_hour;
-    
 BEGIN
-
-    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
-        RAISE EXCEPTION 'Meeting session does not exist.';
-    END IF;
 
     IF (is_approved_session(floor_number, room_number, session_date, start_hour)) THEN
         RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
@@ -558,6 +546,8 @@ BEGIN
     -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
     -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
     -- would aggregation help (2.4 in ER pdf)
+
+    -- assumes employee will attend until the stated hours if start AND end hour is within the session.
     WHILE temp_time < end_hour LOOP
         INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time);
         temp_time := temp_time + INTERVAL '1 hour';
@@ -565,7 +555,42 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION prevent_clashes()
+RETURNS TRIGGER AS $$
+DECLARE
+    temp_hour TIME := NEW.start_hour;
+BEGIN
 
+    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
+        RAISE EXCEPTION 'Meeting session does not exist.';
+    END IF;
+
+    WHILE temp_hour < end_hour LOOP
+        IF EXISTS (
+            SELECT 1 
+            FROM meeting_sessions m
+            WHERE NEW.eid = m.eid
+            AND NEW.session_date = m.session_date
+            AND (
+                NEW.temp_hour = m.start_hour
+                OR NEW.end_hour = m.start_hour
+            )) THEN
+            RAISE EXCEPTION 'Employee is already attending another meeting in room at 3pm on the same day.';
+        ELSE
+            temp_hour := temp_hour + INTERVAL '1 hour';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS joining_multiple_meetings ON joins;
+CREATE TRIGGER joining_multiple_meetings
+BEFORE INSERT ON joins
+FOR EACH ROW
+EXECUTE FUNCTION prevent_clashes();
 
 /**
  * Causes the employee with the given employee_id to leave the meeting with the given parameters.
@@ -785,8 +810,6 @@ RETURNS TABLE (
     END;
 $$ LANGUAGE plpgsql
 
-
-
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -807,6 +830,13 @@ BEGIN
 
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
+CREATE TRIGGER employee_has_fever
+AFTER INSERT ON health_declaration
+FOR EACH ROW
+WHEN (NEW.fever = true)
+EXECUTE FUNCTION contact_tracing_procedure();
 
 /***************************************
  * ADMIN
