@@ -605,45 +605,6 @@ $$ LANGUAGE plpgsql;
 
 SELECT join_meeting(1,1,'2021-11-17','15:00:00', '17:00:00', 10); -- clash same timing
 
--- DROP FUNCTION IF EXISTS prevent_clashes;
--- CREATE OR REPLACE FUNCTION prevent_clashes()
--- RETURNS TRIGGER AS $$
--- DECLARE
---     temp_hour TIME := NEW.session_time;
---     total_duration TIME := get_entire_meeting_duration(NEW.building_floor, NEW.room, NEW.NEW.session_time 
--- BEGIN
-
---     -- IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
---     --     RAISE EXCEPTION 'Meeting session does not exist.';
---     -- END IF;
-
---     WHILE temp_hour < end_hour LOOP
---         IF EXISTS (
---             SELECT 1 
---             FROM meeting_sessions m
---             WHERE NEW.eid = m.eid
---             AND NEW.session_date = m.session_date
---             AND (
---                 NEW.temp_hour = m.start_hour
---                 OR NEW.end_hour = m.start_hour
---             )) THEN
---             RAISE EXCEPTION 'Employee is already attending another meeting in room at 3pm on the same day.';
---         ELSE
---             temp_hour := temp_hour + INTERVAL '1 hour';
---         END IF;
---     END LOOP;
-
---     RETURN NEW;
-
--- END;
--- $$ LANGUAGE plpgsql;
-
--- DROP TRIGGER IF EXISTS joining_multiple_meetings ON joins;
--- CREATE TRIGGER joining_multiple_meetings
--- BEFORE INSERT ON joins
--- FOR EACH ROW
--- EXECUTE FUNCTION prevent_clashes();
-
 /**
  * Causes the employee with the given employee_id to leave the meeting with the given parameters.
  */
