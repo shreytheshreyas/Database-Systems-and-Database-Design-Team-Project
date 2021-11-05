@@ -10,9 +10,9 @@ CREATE TABLE employees(
     ekind TEXT,
     did INTEGER NOT NULL DEFAULT 0,
     resigned_date DATE DEFAULT NULL,
-    mobile_contact INTEGER,
-    home_contact INTEGER,
-    office_contact INTEGER
+    mobile_contact INTEGER CHECK (80000000 <= mobile_contact <= 99999999),
+    home_contact INTEGER CHECK (60000000 <= home_contact <= 69999999),
+    office_contact INTEGER CHECK (60000000 <= office_contact <= 69999999)
 );
 
 CREATE TABLE junior(
