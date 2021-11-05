@@ -1025,6 +1025,8 @@ RETURNS TABLE(
 
 $$ LANGUAGE sql;
 
+
+-- -- CREATE OR REPLACE FUNCTION view_future_meeting
 CREATE OR REPLACE FUNCTION view_future_meeting (
     session_date_ DATE,
     employee_id INT
@@ -1047,4 +1049,66 @@ AS $$
     END;
 $$ LANGUAGE plpgsql
 
+
 -- CREATE OR REPLACE FUNCTION view_manager_report
+-- view_manager_report: This routine is to be used by manager to find all meeting rooms that require approval. The
+-- inputs to the routine should minimally include:
+    -- Start date
+    -- Employee ID
+-- If the employee ID does not belong to a manager, the routine returns an empty table. Otherwise, the routine
+-- returns a table containing all meeting that are booked but not yet approved from the given start date onwards.
+-- Note that the routine should only return all meeting in the room with the same department as the manager.
+-- The table returned should minimally include the following columns:
+    -- Floor number
+    -- Room number
+    -- Date
+    -- Start hour
+    -- Employee ID
+-- The table should be sorted in ascending order of date and start hour.
+CREATE OR REPLACE FUNCTION view_manager_report(
+    start_date_ DATE, -- named with a trailing underscore because start_date seems like a postgresql keyword
+    employee_id INT
+)
+RETURNS TABLE(
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    booker_id INT
+) AS $$
+    BEGIN
+    -- -- OBJECTIVE: find all meeting rooms that require approval
+    -- -- The table returned should minimally include the following columns:
+    -- -- Floor number
+    -- -- Room number
+    -- -- Date
+    -- -- Start hour
+    -- -- Employee ID
+
+        IF NOT EXISTS(SELECT 1 FROM manager m WHERE m.eid = employee_id) THEN
+            -- RETURN NULL;
+            RAISE EXCEPTION 'This employee is not a manager';
+        END IF;
+
+        RETURN QUERY
+
+        SELECT
+            s.building_floor AS floor_number,
+            s.room AS room_number,
+            s.session_date AS session_date,
+            s.session_time AS start_hour,
+            s.booker_id AS booker_id
+        FROM
+            (meeting_sessions NATURAL JOIN meeting_rooms) s
+        WHERE
+            s.session_date >= start_date_ -- returns a table containing all meeting that are booked but not yet approved from the given start date onwards.
+            AND s.endorser_id IS NULL
+            AND EXISTS (SELECT eid FROM (manager NATURAL JOIN employees) m WHERE s.did = m.did AND m.eid = employee_id) -- Note that the routine should only return all meeting in the room with the same department as the manager.
+            
+        -- The table should be sorted in ascending order of date and start hour.
+        ORDER BY
+            s.session_date ASC,
+            s.session_time ASC;
+
+    END
+$$ LANGUAGE plpgsql;
