@@ -10,9 +10,9 @@ CREATE TABLE employees(
     ekind TEXT,
     did INTEGER NOT NULL DEFAULT 0,
     resigned_date DATE DEFAULT NULL,
-    mobile_contact TEXT,
-    home_contact TEXT,
-    office_contact TEXT
+    mobile_contact INTEGER,
+    home_contact INTEGER,
+    office_contact INTEGER
 );
 
 CREATE TABLE junior(
