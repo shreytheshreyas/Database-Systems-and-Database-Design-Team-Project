@@ -10,9 +10,9 @@ CREATE TABLE employees(
     ekind TEXT,
     did INTEGER NOT NULL DEFAULT 0,
     resigned_date DATE DEFAULT NULL,
-    mobile_contact INTEGER,
-    home_contact INTEGER,
-    office_contact INTEGER
+    mobile_contact INTEGER CHECK (80000000 <= mobile_contact <= 99999999),
+    home_contact INTEGER CHECK (60000000 <= home_contact <= 69999999),
+    office_contact INTEGER CHECK (60000000 <= office_contact <= 69999999)
 );
 
 CREATE TABLE junior(
@@ -83,7 +83,7 @@ CREATE TABLE meeting_sessions(
     building_floor INTEGER,
     session_date DATE,
     session_time TIME,
-    booker_id INTEGER DEFAULT NULL,
+    booker_id INTEGER NOT NULL,
     endorser_id INTEGER DEFAULT NULL, 
     CONSTRAINT meeting_sessions_pk PRIMARY KEY(room,building_floor,session_date,session_time),
     CONSTRAINT session_meeting_room_fk_constraint FOREIGN KEY (room,building_floor) REFERENCES meeting_rooms(room,building_floor) ON DELETE CASCADE,
