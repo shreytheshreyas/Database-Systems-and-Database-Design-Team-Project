@@ -249,28 +249,30 @@ $$ LANGUAGE sql;
  * returns True when meeting room is already at
  * maximum capacity
  */
+
+DROP FUNCTION IF EXISTS is_meeting_session_full;
 CREATE OR REPLACE FUNCTION is_meeting_session_full(
-    floor_number INT,
-    room_number INT,
-    session_date DATE,
-    start_hour TIME
+    floor_number_ INT,
+    room_number_ INT,
+    session_date_ DATE,
+    start_hour_ TIME
 )
 RETURNS BOOLEAN AS $$ 
 DECLARE
     capacity INTEGER := (
         SELECT updated_new_cap
         FROM meeting_rooms r
-        WHERE floor_number = r.building_floor
-        AND room_number = r.room
+        WHERE floor_number_ = r.building_floor
+        AND room_number_ = r.room
     ); --if storing old record, just sieve out latest date
     
     current_attendance INTEGER := (
         SELECT COUNT(*)
         FROM joins j
-        WHERE j.room = room_number
-        AND j.building_floor = floor_number
-        AND j.session_date = session_date
-        AND j.session_time = start_hour
+        WHERE j.room = room_number_
+        AND j.building_floor = floor_number_
+        AND j.session_date = session_date_
+        AND j.session_time = start_hour_
     );
 
 BEGIN
@@ -295,6 +297,31 @@ RETURNS BOOLEAN AS $$
         WHERE h.eid = employee_id
         AND fever = true
     );
+$$ LANGUAGE sql;
+
+/**
+ * Get duration (hours) of a selected meeting
+ */
+CREATE OR REPLACE FUNCTION get_entire_meeting_duration (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    employee_id INT
+)
+RETURNS INT AS $$ 
+DECLARE
+    session_hour TIME := start_hour;
+    ctr INT := 0;
+BEGIN
+    WHILE session_hour < end_hour LOOP
+        IF is_existing_session(floor_number, room_number, meeting_date, start_hour) THEN
+            ctr := ctr + 1
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;       
+    RETURN ctr;
+END;
 $$ LANGUAGE sql;
 
 /***************************************
@@ -509,37 +536,39 @@ $$ LANGUAGE plpgsql;
 
 -- CREATE OR REPLACE FUNCTION unbook_room
 
+DROP FUNCTION IF EXISTS join_meeting;
 CREATE OR REPLACE FUNCTION join_meeting (
-    IN room_number INT,
-    IN floor_number INT,
-    IN session_date DATE,
-    IN start_hour TIME,
-    IN end_hour TIME,
-    IN eid INT
+    IN room_number_ INT,
+    IN floor_number_ INT,
+    IN session_date_ DATE,
+    IN start_hour_ TIME,
+    IN end_hour_ TIME,
+    IN eid_ INT
     )
 RETURNS VOID AS $$
 
 DECLARE 
-    temp_time TIME := start_hour;
+    temp_time TIME := start_hour_;
+    temp_time2 TIME := start_hour_;
 BEGIN
 
-    IF (is_approved_session(floor_number, room_number, session_date, start_hour)) THEN
+    IF (is_approved_session(floor_number_, room_number_, session_date_, start_hour_)) THEN
         RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
     END IF;
 
-    IF (is_retired_employee(eid)) THEN
+    IF (is_retired_employee(eid_)) THEN
         RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
     END IF;
 
-    IF (has_fever_employee(eid)) THEN
+    IF (has_fever_employee(eid_)) THEN
         RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
     END IF;
 
-    IF NOT (session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND start_hour > CURRENT_TIME)) THEN 
+    IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour_ > CURRENT_TIME)) THEN 
         RAISE EXCEPTION 'Meeting is currently/has already occurred.';
     END IF;
 
-    IF (is_meeting_session_full(floor_number, room_number, session_date, start_hour)) THEN
+    IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
         RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
 
@@ -547,50 +576,73 @@ BEGIN
     -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
     -- would aggregation help (2.4 in ER pdf)
 
-    -- assumes employee will attend until the stated hours if start AND end hour is within the session.
-    WHILE temp_time < end_hour LOOP
-        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time);
-        temp_time := temp_time + INTERVAL '1 hour';
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION prevent_clashes()
-RETURNS TRIGGER AS $$
-DECLARE
-    temp_hour TIME := NEW.start_hour;
-BEGIN
-
-    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
-        RAISE EXCEPTION 'Meeting session does not exist.';
-    END IF;
-
-    WHILE temp_hour < end_hour LOOP
+    -- check clashing 
+    WHILE temp_time2 < end_hour_ LOOP
         IF EXISTS (
             SELECT 1 
-            FROM meeting_sessions m
-            WHERE NEW.eid = m.eid
-            AND NEW.session_date = m.session_date
+            FROM joins j
+            WHERE eid_ = j.eid
+            AND session_date_ = j.session_date
             AND (
-                NEW.temp_hour = m.start_hour
-                OR NEW.end_hour = m.start_hour
+                temp_time2 = j.session_time
+                OR end_hour_ = j.session_time
             )) THEN
-            RAISE EXCEPTION 'Employee is already attending another meeting in room at 3pm on the same day.';
+            RAISE EXCEPTION 'Employee is already attending a meeting at the same timing';
         ELSE
-            temp_hour := temp_hour + INTERVAL '1 hour';
+            temp_time2 := temp_time2 + INTERVAL '1 hour';
         END IF;
     END LOOP;
 
-    RETURN NEW;
+     -- if not clashing, assumes employee will attend until the stated hours if start AND end hour is within the session.
+    WHILE temp_time < end_hour_ LOOP
+        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid_, room_number_, floor_number_, session_date_, temp_time);
+        temp_time := temp_time + INTERVAL '1 hour';
+    END LOOP;
 
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS joining_multiple_meetings ON joins;
-CREATE TRIGGER joining_multiple_meetings
-BEFORE INSERT ON joins
-FOR EACH ROW
-EXECUTE FUNCTION prevent_clashes();
+
+SELECT join_meeting(1,1,'2021-11-17','15:00:00', '17:00:00', 10); -- clash same timing
+
+-- DROP FUNCTION IF EXISTS prevent_clashes;
+-- CREATE OR REPLACE FUNCTION prevent_clashes()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     temp_hour TIME := NEW.session_time;
+--     total_duration TIME := get_entire_meeting_duration(NEW.building_floor, NEW.room, NEW.NEW.session_time 
+-- BEGIN
+
+--     -- IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
+--     --     RAISE EXCEPTION 'Meeting session does not exist.';
+--     -- END IF;
+
+--     WHILE temp_hour < end_hour LOOP
+--         IF EXISTS (
+--             SELECT 1 
+--             FROM meeting_sessions m
+--             WHERE NEW.eid = m.eid
+--             AND NEW.session_date = m.session_date
+--             AND (
+--                 NEW.temp_hour = m.start_hour
+--                 OR NEW.end_hour = m.start_hour
+--             )) THEN
+--             RAISE EXCEPTION 'Employee is already attending another meeting in room at 3pm on the same day.';
+--         ELSE
+--             temp_hour := temp_hour + INTERVAL '1 hour';
+--         END IF;
+--     END LOOP;
+
+--     RETURN NEW;
+
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- DROP TRIGGER IF EXISTS joining_multiple_meetings ON joins;
+-- CREATE TRIGGER joining_multiple_meetings
+-- BEFORE INSERT ON joins
+-- FOR EACH ROW
+-- EXECUTE FUNCTION prevent_clashes();
 
 /**
  * Causes the employee with the given employee_id to leave the meeting with the given parameters.
