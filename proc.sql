@@ -249,37 +249,39 @@ $$ LANGUAGE sql;
  * returns True when meeting room is already at
  * maximum capacity
  */
-CREATE OR REPLACE FUNCTION is_meeting_session_full (
-    floor_number INT,
-    room_number INT,
-    session_date DATE,
-    start_hour TIME,
+
+DROP FUNCTION IF EXISTS is_meeting_session_full;
+CREATE OR REPLACE FUNCTION is_meeting_session_full(
+    floor_number_ INT,
+    room_number_ INT,
+    session_date_ DATE,
+    start_hour_ TIME
 )
 RETURNS BOOLEAN AS $$ 
 DECLARE
-    capacity INT := (
+    capacity INTEGER := (
         SELECT updated_new_cap
         FROM meeting_rooms r
-        WHERE floor_number = r.building_floor
-        AND room_number = r.room
+        WHERE floor_number_ = r.building_floor
+        AND room_number_ = r.room
     ); --if storing old record, just sieve out latest date
-
-    current_attendance INT := (
+    
+    current_attendance INTEGER := (
         SELECT COUNT(*)
         FROM joins j
-        WHERE j.room = room_number
-        AND j.building_floor = floor_number
-        AND j.session_date = session_date
-        AND j.session _time = start_hour
+        WHERE j.room = room_number_
+        AND j.building_floor = floor_number_
+        AND j.session_date = session_date_
+        AND j.session_time = start_hour_
     );
 
 BEGIN
-    IF current_attendance = capacity THEN
+    IF (current_attendance = capacity) THEN
         RETURN TRUE;
     END IF;    
     RETURN FALSE;
 END;
-$$ LANGUAGE sql;
+$$ LANGUAGE plpgsql;
 
 /*
  * Returns true when selected employee has a fever
@@ -297,19 +299,37 @@ RETURNS BOOLEAN AS $$
     );
 $$ LANGUAGE sql;
 
+/**
+ * Get duration (hours) of a selected meeting
+ */
+CREATE OR REPLACE FUNCTION get_entire_meeting_duration (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    employee_id INT
+)
+RETURNS INT AS $$ 
+DECLARE
+    session_hour TIME := start_hour;
+    ctr INT := 0;
+BEGIN
+    WHILE session_hour < end_hour LOOP
+        IF is_existing_session(floor_number, room_number, meeting_date, start_hour) THEN
+            ctr := ctr + 1
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;       
+    RETURN ctr;
+END;
+$$ LANGUAGE sql;
+
 /***************************************
  * TRIGGERS
  **************************************/
 
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
-
-DROP TRIGGER IF EXISTS employee_has_fever
-CREATE TRIGGER employee_has_fever
-AFTER INSERT ON health_declaration
-FOR EACH ROW
-WHEN (NEW.fever = true)
-EXECUTE FUNCTION contact_tracing_procedure();
 
 /***************************************
  * BASIC
@@ -516,55 +536,75 @@ $$ LANGUAGE plpgsql;
 
 -- CREATE OR REPLACE FUNCTION unbook_room
 
+DROP FUNCTION IF EXISTS join_meeting;
 CREATE OR REPLACE FUNCTION join_meeting (
-    IN room_number INT,
-    IN floor_number INT,
-    IN session_date DATE,
-    IN start_hour TIME,
-    IN end_hour TIME,
-    IN eid INT
+    IN room_number_ INT,
+    IN floor_number_ INT,
+    IN session_date_ DATE,
+    IN start_hour_ TIME,
+    IN end_hour_ TIME,
+    IN eid_ INT
     )
 RETURNS VOID AS $$
 
 DECLARE 
-    temp_time TIME := start_hour;
-    
+    temp_time TIME := start_hour_;
+    temp_time2 TIME := start_hour_;
 BEGIN
 
-    IF NOT (is_existing_meeting(floor_number, room_number, session_date, start_hour, end_hour)) THEN
+    IF NOT (is_existing_meeting(floor_number_, room_number_, session_date_, start_hour_, end_hour_)) THEN
         RAISE EXCEPTION 'Meeting session does not exist.';
     END IF;
 
-    IF (is_approved_session(floor_number, room_number, session_date, start_hour)) THEN
+    IF (is_approved_session(floor_number_, room_number_, session_date_, start_hour_)) THEN
         RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
     END IF;
 
-    IF (is_retired_employee(eid)) THEN
+    IF (is_retired_employee(eid_)) THEN
         RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
     END IF;
 
-    IF (has_fever_employee(eid)) THEN
+    IF (has_fever_employee(eid_)) THEN
         RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
     END IF;
 
-    IF NOT (session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND start_hour > CURRENT_TIME)) THEN 
+    IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour_ > CURRENT_TIME)) THEN 
         RAISE EXCEPTION 'Meeting is currently/has already occurred.';
     END IF;
 
-    IF (is_meeting_session_full(floor_number, room_number, session_date, start_hour)) THEN
-        RAISE EXCEPTION 'The meeting room is already full.'
+    IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
+        RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
 
     -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
     -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
     -- would aggregation help (2.4 in ER pdf)
-    WHILE temp_time < end_hour LOOP
-        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid, room_number, floor_number, session_date, temp_time);
+
+    -- check clashing 
+    WHILE temp_time2 < end_hour_ LOOP
+        IF EXISTS (
+            SELECT 1 
+            FROM joins j
+            WHERE eid_ = j.eid
+            AND session_date_ = j.session_date
+            AND (
+                temp_time2 = j.session_time
+                OR end_hour_ = j.session_time
+            )) THEN
+            RAISE EXCEPTION 'Employee is already attending a meeting at the same timing';
+        ELSE
+            temp_time2 := temp_time2 + INTERVAL '1 hour';
+        END IF;
+    END LOOP;
+
+     -- if not clashing, assumes employee will attend until the stated hours if start AND end hour is within the session.
+    WHILE temp_time < end_hour_ LOOP
+        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid_, room_number_, floor_number_, session_date_, temp_time);
         temp_time := temp_time + INTERVAL '1 hour';
     END LOOP;
+
 END;
 $$ LANGUAGE plpgsql;
-
 
 
 /**
@@ -761,31 +801,28 @@ CREATE OR REPLACE FUNCTION contact_tracing (
     )
 RETURNS TABLE (
     eid INT
-    ) 
-    AS $$
-    BEGIN
-        RETURN QUERY 
-            SELECT DISTINCT j1.eid
-            FROM joins j1,
-                (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
-                FROM meeting_sessions m, joins j
-                WHERE j.eid = employee_id
-                AND j.room = m.room
-                AND j.building_floor = m.building_floor
-                AND j.session_date = m.session_date
-                AND j.session_time = m.session_time
-                --AND m.endorser_id IS NOT NULL
-                -- AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE -- need to manually test it
-                ) t1
-            WHERE j1.room = t1.room
-            AND j1.building_floor = t1.building_floor
-            AND j1.session_date = t1.session_date
-            AND j1.session_time = t1.session_time
-            AND j1.eid <> employee_id;
-    END;
+    ) AS $$
+BEGIN
+    RETURN QUERY 
+        SELECT DISTINCT j1.eid
+        FROM joins j1,
+            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
+            FROM meeting_sessions m, joins j
+            WHERE j.eid = employee_id
+            AND j.room = m.room
+            AND j.building_floor = m.building_floor
+            AND j.session_date = m.session_date
+            AND j.session_time = m.session_time
+            AND m.endorser_id IS NOT NULL
+            AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE
+            ) t1
+        WHERE j1.room = t1.room
+        AND j1.building_floor = t1.building_floor
+        AND j1.session_date = t1.session_date
+        AND j1.session_time = t1.session_time
+        AND j1.eid <> employee_id;
+END;
 $$ LANGUAGE plpgsql
-
-
 
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
 RETURNS TRIGGER AS $$
@@ -794,19 +831,26 @@ BEGIN
     -- close contacts removed from D to D+7 meetings
     DELETE FROM joins j
     WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
-    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'))
+    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'));
 
     -- infected emp removed from all future meetings
     DELETE FROM joins j
     WHERE j.eid = NEW.eid
-    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME))
+    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
 
     -- If the employee is the one booking the room, the booking is cancelled, approved or not.
     DELETE FROM meeting_sessions m
-    WHERE NEW.eid = meeting_sessions.booker_id
+    WHERE NEW.eid = meeting_sessions.booker_id;
 
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
+CREATE TRIGGER employee_has_fever
+AFTER INSERT ON health_declaration
+FOR EACH ROW
+WHEN (NEW.fever = true)
+EXECUTE FUNCTION contact_tracing_procedure();
 
 /***************************************
  * ADMIN
