@@ -552,6 +552,10 @@ DECLARE
     temp_time2 TIME := start_hour_;
 BEGIN
 
+    IF NOT (is_existing_meeting(floor_number_, room_number_, session_date_, start_hour_, end_hour_)) THEN
+        RAISE EXCEPTION 'Meeting session does not exist.';
+    END IF;
+
     IF (is_approved_session(floor_number_, room_number_, session_date_, start_hour_)) THEN
         RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
     END IF;
@@ -602,8 +606,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
-SELECT join_meeting(1,1,'2021-11-17','15:00:00', '17:00:00', 10); -- clash same timing
 
 /**
  * Causes the employee with the given employee_id to leave the meeting with the given parameters.
