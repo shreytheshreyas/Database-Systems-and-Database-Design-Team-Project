@@ -540,7 +540,7 @@ BEGIN
     END IF;
 
     IF (is_meeting_session_full(floor_number, room_number, session_date, start_hour)) THEN
-        RAISE EXCEPTION 'The meeting room is already full.'
+        RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
 
     -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
@@ -786,28 +786,27 @@ CREATE OR REPLACE FUNCTION contact_tracing (
     )
 RETURNS TABLE (
     eid INT
-    ) 
-    AS $$
-    BEGIN
-        RETURN QUERY 
-            SELECT DISTINCT j1.eid
-            FROM joins j1,
-                (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
-                FROM meeting_sessions m, joins j
-                WHERE j.eid = employee_id
-                AND j.room = m.room
-                AND j.building_floor = m.building_floor
-                AND j.session_date = m.session_date
-                AND j.session_time = m.session_time
-                --AND m.endorser_id IS NOT NULL
-                -- AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE -- need to manually test it
-                ) t1
-            WHERE j1.room = t1.room
-            AND j1.building_floor = t1.building_floor
-            AND j1.session_date = t1.session_date
-            AND j1.session_time = t1.session_time
-            AND j1.eid <> employee_id;
-    END;
+    ) AS $$
+BEGIN
+    RETURN QUERY 
+        SELECT DISTINCT j1.eid
+        FROM joins j1,
+            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
+            FROM meeting_sessions m, joins j
+            WHERE j.eid = employee_id
+            AND j.room = m.room
+            AND j.building_floor = m.building_floor
+            AND j.session_date = m.session_date
+            AND j.session_time = m.session_time
+            AND m.endorser_id IS NOT NULL
+            AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE
+            ) t1
+        WHERE j1.room = t1.room
+        AND j1.building_floor = t1.building_floor
+        AND j1.session_date = t1.session_date
+        AND j1.session_time = t1.session_time
+        AND j1.eid <> employee_id;
+END;
 $$ LANGUAGE plpgsql
 
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
@@ -817,16 +816,16 @@ BEGIN
     -- close contacts removed from D to D+7 meetings
     DELETE FROM joins j
     WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
-    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'))
+    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'));
 
     -- infected emp removed from all future meetings
     DELETE FROM joins j
     WHERE j.eid = NEW.eid
-    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME))
+    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
 
     -- If the employee is the one booking the room, the booking is cancelled, approved or not.
     DELETE FROM meeting_sessions m
-    WHERE NEW.eid = meeting_sessions.booker_id
+    WHERE NEW.eid = meeting_sessions.booker_id;
 
 END;
 $$ LANGUAGE plpgsql;
