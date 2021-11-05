@@ -533,8 +533,86 @@ CREATE OR REPLACE FUNCTION search_room (
 $$ LANGUAGE plpgsql; 
 
 -- CREATE OR REPLACE FUNCTION book_room
+--  This routine is used to book a given room. The inputs to the routine should minimally include:
+-- Floor number
+-- Room number
+-- Date
+-- Start hour
+-- End hour
+-- Employee ID
+-- The employee ID is the ID of the employee that is booking the room. If the booking is allowed (see the conditions
+-- necessary for this in Application), the routine will process the booking for people to join and for approval.
+CREATE OR REPLACE FUNCTION book_room (
+    IN floor_number INT,
+    IN room INT,
+    IN booking_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN employee_id INT,
+    )
 
+    INSERT INTO meeting_sessions VALUES (
+        room,
+        floor_number,
+        booking_date,
+        booking_date,
+        employee_id,
+        NULL, 
+    );
+
+$$ LANGUAGE plpgsql 
+
+-- unbook_room: This routine is used to remove booking of a given room. The inputs to the routine should minimally
+-- include:
+-- Floor number
+-- Room number
+-- Date
+-- Start hour
+-- End hour
+-- Employee ID
+-- The employee ID is the ID of the employee that is asking to remove the booking. If this is not the employee doing
+-- the booking, the employee is not allowed to remove booking (the no sabotage rule). If the booking is already
+-- approved, also remove the approval. If there are already employees joining the meeting, also remove them from
+-- the respective tables
 -- CREATE OR REPLACE FUNCTION unbook_room
+CREATE OR REPLACE FUNCTION unbook_room (
+    IN floor_number INT,
+    IN room INT,
+    IN booking_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN employee_id INT,
+    )
+
+    BEGIN 
+    IF  EXISTS 
+        (SELECT 1 FROM meeting_sessions WHERE 
+            (
+                room = room 
+                AND building_floor = floor_number 
+                AND session_date = booking_date 
+                AND session_time = start_hour 
+                AND booker_id = employee_id
+            )
+        ) THEN 
+
+        DELETE FROM meeting_sessions
+        WHERE (
+            room = room 
+            AND building_floor = floor_number
+            AND session_date = booking_date
+            AND session_time = start_hour
+            AND booker_id = employee_id
+        )
+
+    ELSE 
+        RAISE EXCEPTION 'Booking does not exist';
+    END IF;
+
+    END;
+
+$$ LANGUAGE plpgsql
+
 
 DROP FUNCTION IF EXISTS join_meeting;
 CREATE OR REPLACE FUNCTION join_meeting (
