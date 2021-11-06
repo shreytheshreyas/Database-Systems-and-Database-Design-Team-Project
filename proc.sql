@@ -1427,7 +1427,7 @@ CREATE OR REPLACE FUNCTION non_compliance_helper (
 RETURNS TABLE(eid INTEGER, num_of_days INTEGER) 
 AS $$
 DECLARE 
-    table_cursor CURSOR FOR (SELECT e.eid FROM employees e);
+    table_cursor CURSOR FOR (SELECT e.eid, e.resigned_date FROM employees e);
     temp_date DATE := begin_date;
     table_record RECORD;
     day_counter INTEGER := 0;
@@ -1439,6 +1439,7 @@ BEGIN
         FETCH table_cursor INTO table_record;
         EXIT WHEN NOT FOUND;
         
+        CONTINUE WHEN table_record.resigned_date IS NOT NULL;
         --This loop is the nested loop
         WHILE temp_date <= end_date LOOP
             IF NOT EXISTS(SELECT 1 FROM health_declaration hd WHERE hd.eid = table_record.eid AND hd.declaration_date = temp_date) THEN
