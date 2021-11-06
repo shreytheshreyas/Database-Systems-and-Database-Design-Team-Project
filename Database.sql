@@ -102,7 +102,7 @@ CREATE TABLE joins(
     session_time TIME,
     CONSTRAINT joins_pk PRIMARY KEY(eid,room,building_floor,session_date,session_time),
     CONSTRAINT joins_employee_fk_constraint FOREIGN KEY (eid) REFERENCES employees(eid),
-    CONSTRAINT joins_meeting_sessions_fk_constraint FOREIGN KEY (room,building_floor,session_date,session_time) REFERENCES meeting_sessions(room,building_floor,session_date,session_time)  ON DELETE CASCADE
+    CONSTRAINT joins_meeting_sessions_fk_constraint FOREIGN KEY (room,building_floor,session_date,session_time) REFERENCES meeting_sessions(room,building_floor,session_date,session_time) ON DELETE CASCADE
 );
 
 --Other Constraints 
