@@ -592,8 +592,37 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_not_started();
 
--- DROP TRIGGER IF EXISTS <trigger name>
--- CREATE TRIGGER <trigger name>
+/**
+ * Contact Tracing constraints:
+ * 1. The employee is removed from all future meeting room booking, approved or not.
+ * 2. These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
+ * 3. The employee is removed from all future meeting room booking, approved or not.
+ */
+CREATE OR REPLACE FUNCTION contact_tracing_procedure()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM joins j
+    WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
+    AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
+
+    DELETE FROM joins j
+    WHERE j.eid = NEW.eid
+    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
+
+    DELETE FROM meeting_sessions m
+    WHERE NEW.eid = m.booker_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
+CREATE TRIGGER employee_has_fever
+AFTER INSERT ON health_declaration
+FOR EACH ROW
+WHEN (NEW.fever = true)
+EXECUTE FUNCTION contact_tracing_procedure();
+
 
 /***************************************
  * BASIC
@@ -1286,35 +1315,6 @@ BEGIN
         AND j1.eid <> employee_id;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION contact_tracing_procedure()
-RETURNS TRIGGER AS $$
-BEGIN
-
-    -- close contacts removed from D to D+7 meetings
-    DELETE FROM joins j
-    WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
-    AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
-
-    -- infected emp removed from all future meetings
-    DELETE FROM joins j
-    WHERE j.eid = NEW.eid
-    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
-
-    -- If the employee is the one booking the room, the booking is cancelled, approved or not.
-    DELETE FROM meeting_sessions m
-    WHERE NEW.eid = m.booker_id;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
-CREATE TRIGGER employee_has_fever
-AFTER INSERT ON health_declaration
-FOR EACH ROW
-WHEN (NEW.fever = true)
-EXECUTE FUNCTION contact_tracing_procedure();
 
 /***************************************
  * ADMIN
