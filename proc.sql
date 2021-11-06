@@ -364,6 +364,65 @@ $$ LANGUAGE plpgsql;
  **************************************/
 
 /**
+ * Constraint 19
+ * "If an employee is having a fever, they cannot join a booked meeting.""
+ */
+CREATE OR REPLACE FUNCTION block_fever_employee_joining()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (has_fever_employee(NEW.eid)) THEN
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS block_fever_employee ON joins;
+CREATE TRIGGER block_fever_employee
+BEFORE INSERT ON joins
+FOR EACH ROW
+EXECUTE FUNCTION block_fever_employee_joining();
+
+/**
+ * Constraint 26
+ * "An employee can only join future meetings."
+ */
+CREATE OR REPLACE FUNCTION check_block_past_joins()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT (NEW.session_date > CURRENT_DATE OR (NEW.session_date = CURRENT_DATE AND NEW.session_time > CURRENT_TIME)) THEN 
+        RAISE EXCEPTION 'Meeting is currently/has already occurred.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS block_past_joins ON joins;
+CREATE TRIGGER block_past_joins
+BEFORE INSERT ON joins
+FOR EACH ROW
+EXECUTE FUNCTION check_block_past_joins();
+
+/**
+ * Ensure new attendees joining do not exceed room capacity
+ */
+CREATE OR REPLACE FUNCTION block_over_exceed_joins()
+RETURNS TRIGGER AS $$
+BEGIN
+     IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
+        RAISE EXCEPTION 'The meeting room is already full.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS over_exceed_joins ON joins;
+CREATE TRIGGER over_exceed_joins
+BEFORE INSERT ON joins
+FOR EACH ROW
+EXECUTE FUNCTION block_over_exceed_joins();
+
+/**
  * Constraint 33
  * "When an employee resigns, all past records are kept"
  */
