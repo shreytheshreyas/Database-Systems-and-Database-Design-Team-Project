@@ -592,8 +592,6 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_not_started();
 
-
-
 /**
  * Contact Tracing constraints:
  * 1. The employee is removed from all future meeting room booking, approved or not.
@@ -625,6 +623,22 @@ FOR EACH ROW
 WHEN (NEW.fever = true)
 EXECUTE FUNCTION contact_tracing_procedure();
 
+CREATE OR REPLACE FUNCTION check_update_capacity()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM meeting_sessions m
+    WHERE NEW.room = m.room
+    AND NEW.building_floor = m.building_floor
+    AND OLD.update_new_cap > NEW.update_new_cap
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql
+
+DROP TRIGGER IF EXISTS update_capacity ON meeting_rooms;
+CREATE TRIGGER update_capacity
+AFTER UPDATE OF update_new_cap ON meeting_rooms
+FOR EACH ROW
+EXECUTE FUNCTION check_update_capacity();
 
 /***************************************
  * BASIC
