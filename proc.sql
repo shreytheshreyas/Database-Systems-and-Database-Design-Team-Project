@@ -212,7 +212,7 @@ DECLARE
 BEGIN
 
     WHILE session_hour < end_hour LOOP
-        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id) THEN 
+        IF NOT is_booker_of_session(floor_number, room_number, session_date, session_hour, employee_id) THEN
             RETURN FALSE;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -257,10 +257,45 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
--- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
-
-
 /**
+ * returns True when meeting room is already at
+ * maximum capacity
+ */
+
+DROP FUNCTION IF EXISTS is_meeting_session_full;
+CREATE OR REPLACE FUNCTION is_meeting_session_full(
+    floor_number_ INT,
+    room_number_ INT,
+    session_date_ DATE,
+    start_hour_ TIME
+)
+RETURNS BOOLEAN AS $$ 
+DECLARE
+    capacity INTEGER := (
+        SELECT updated_new_cap
+        FROM meeting_rooms r
+        WHERE floor_number_ = r.building_floor
+        AND room_number_ = r.room
+    ); --if storing old record, just sieve out latest date
+    
+    current_attendance INTEGER := (
+        SELECT COUNT(*)
+        FROM joins j
+        WHERE j.room = room_number_
+        AND j.building_floor = floor_number_
+        AND j.session_date = session_date_
+        AND j.session_time = start_hour_
+    );
+
+BEGIN
+    IF (current_attendance = capacity) THEN
+        RETURN TRUE;
+    END IF;    
+    RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+
+/*
  * Returns true when selected employee has a fever
  */
 CREATE OR REPLACE FUNCTION has_fever_employee (
@@ -276,14 +311,270 @@ RETURNS BOOLEAN AS $$
     );
 $$ LANGUAGE sql;
 
+/**
+ * Get duration (hours) of a selected meeting
+ */
+CREATE OR REPLACE FUNCTION get_entire_meeting_duration (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    employee_id INT
+)
+RETURNS INT AS $$ 
+DECLARE
+    session_hour TIME := start_hour;
+    ctr INT := 0;
+BEGIN
+    WHILE session_hour < end_hour LOOP
+        IF is_existing_session(floor_number, room_number, meeting_date, start_hour) THEN
+            ctr := ctr + 1
+        END IF;
+        session_hour := session_hour + INTERVAL '1 hour';
+    END LOOP;       
+    RETURN ctr;
+END;
+$$ LANGUAGE sql;
+
+-- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
+
+
+
 /***************************************
  * TRIGGERS
  **************************************/
 
+/**
+ * Constraint 33
+ * "When an employee resigns, all past records are kept"
+ */
+CREATE OR REPLACE FUNCTION block_delete_employees()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    RAISE EXCEPTION 'No employee record can be deleted; this is to facilitate contact tracing.';
+    RETURN NULL;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS employee_deletion ON employees;
+CREATE TRIGGER employee_deletion
+BEFORE DELETE ON employees
+FOR EACH STATEMENT
+EXECUTE FUNCTION block_delete_employees();
+
+/**
+ * An employee that has resigned cannot do a health declaration.
+ */
+CREATE OR REPLACE FUNCTION check_not_resigned_health_declaration()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_retired_employee(NEW.eid) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot do a health declaration.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS not_resigned_health_declaration ON health_declaration;
+CREATE TRIGGER not_resigned_health_declaration
+BEFORE INSERT ON health_declaration
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_health_declaration();
+
+/**
+ * Constraint 34(a)
+ * "When an employee resigns, they are no longer allowed to book ... any meetings"
+ */
+CREATE OR REPLACE FUNCTION check_not_resigned_session_booker()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_retired_employee(NEW.booker_id) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot book a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS not_resigned_session_booker ON meeting_sessions;
+CREATE TRIGGER not_resigned_session_booker
+BEFORE INSERT ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_session_booker();
+
+/**
+ * Constraint 34(b)
+ * "When an employee resigns, they are no longer allowed to ... approve any meetings"
+ */
+CREATE OR REPLACE FUNCTION check_not_resigned_session_endorser()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_retired_employee(NEW.endorser_id) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot approve a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS not_resigned_session_endorser ON meeting_sessions;
+CREATE TRIGGER not_resigned_session_endorser
+BEFORE INSERT OR UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_session_endorser();
+
+/**
+ * An employee that has resigned cannot join a meeting session.
+ */
+CREATE OR REPLACE FUNCTION check_not_resigned_session_participant()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_retired_employee(NEW.eid) THEN
+        RAISE EXCEPTION 'An employee that has resigned cannot join a meeting session.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS not_resigned_session_participant ON joins;
+CREATE TRIGGER not_resigned_session_participant
+BEFORE INSERT ON joins
+FOR EACH ROW
+EXECUTE FUNCTION check_not_resigned_session_participant();
+
+/**
+ * Constraint 23
+ * "Once approved, there should be no more changes in the participants and the participants will definitely come to the
+ * meeting on the stipulated day"
+ * Note that increases in participants is not enforced by this trigger, only decreases.
+ */
+CREATE OR REPLACE FUNCTION check_unapproved_meeting_session_exit()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time) THEN
+        RAISE EXCEPTION 'An employee cannot leave a meeting session that has already been approved.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS unapproved_meeting_session_exit ON joins;
+CREATE TRIGGER unapproved_meeting_session_exit
+BEFORE DELETE ON joins
+FOR EACH ROW
+EXECUTE FUNCTION check_unapproved_meeting_session_exit();
+
+/**
+ * Constraint 22
+ * "A booked meeting is approved at most once"
+ */
+CREATE OR REPLACE FUNCTION check_unapproved_meeting_session_approval()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF OLD.endorser_id IS NOT NULL THEN
+        RAISE EXCEPTION 'The endorser cannot be changed.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS unapproved_meeting_session_approval ON meeting_sessions;
+CREATE TRIGGER unapproved_meeting_session_approval
+BEFORE UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_unapproved_meeting_session_approval();
+
+/**
+ * The only updates that can occur on a meeting session record is an approval.
+ */
+CREATE OR REPLACE FUNCTION check_meeting_session_update()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    RAISE EXCEPTION 'The location, date, time, or booker cannot be changed.';
+    RETURN NULL;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS meeting_session_update ON meeting_sessions;
+CREATE TRIGGER meeting_session_update
+BEFORE UPDATE OF building_floor, room, session_date, session_time, booker_id ON meeting_sessions
+FOR EACH STATEMENT
+EXECUTE FUNCTION check_meeting_session_update();
+
+/**
+ * Constraint 21
+ * "A manager can only approve a booked meeting in the same department as the manager"
+ * This is for updates (i.e., the session already exists)
+ */
+CREATE OR REPLACE FUNCTION check_meeting_session_update_approval_department()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NOT is_employee_of_same_department_as_room(OLD.building_floor, OLD.room, NEW.endorser_id) THEN
+        RAISE EXCEPTION 'The endorser must be a manager of the same department as the room.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS meeting_session_update_approval_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_update_approval_department
+BEFORE UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_update_approval_department();
+
+/**
+ * Constraint 21
+ * "A manager can only approve a booked meeting in the same department as the manager"
+ * This is for inserts (i.e., the approval is carried out at the same time as the booking, like when a manager books)
+ */
+CREATE OR REPLACE FUNCTION check_meeting_session_insert_approval_department()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NEW.endorser_id IS NOT NULL
+            AND NOT is_employee_of_same_department_as_room(NEW.building_floor, NEW.room, NEW.endorser_id) THEN
+        RAISE EXCEPTION 'The endorser must be a manager of the same department as the room.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS meeting_session_insert_approval_department ON meeting_sessions;
+CREATE TRIGGER meeting_session_insert_approval_department
+BEFORE INSERT ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_insert_approval_department();
+
+/**
+ * Constraint 27
+ * "An approval can only be made on future meetings"
+ */
+CREATE OR REPLACE FUNCTION check_meeting_session_not_started()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF (OLD.session_date + OLD.session_time) <= CURRENT_TIMESTAMP THEN
+        RAISE EXCEPTION 'This meeting session would have now already started or possibly even finished.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS meeting_session_not_started ON meeting_sessions;
+CREATE TRIGGER meeting_session_not_started
+BEFORE UPDATE OF endorser_id ON meeting_sessions
+FOR EACH ROW
+EXECUTE FUNCTION check_meeting_session_not_started();
+
 -- DROP TRIGGER IF EXISTS <trigger name>
 -- CREATE TRIGGER <trigger name>
-
-
 
 /***************************************
  * BASIC
@@ -491,10 +782,157 @@ CREATE OR REPLACE FUNCTION search_room (
 $$ LANGUAGE plpgsql; 
 
 -- CREATE OR REPLACE FUNCTION book_room
+--  This routine is used to book a given room. The inputs to the routine should minimally include:
+-- Floor number
+-- Room number
+-- Date
+-- Start hour
+-- End hour
+-- Employee ID
+-- The employee ID is the ID of the employee that is booking the room. If the booking is allowed (see the conditions
+-- necessary for this in Application), the routine will process the booking for people to join and for approval.
+CREATE OR REPLACE FUNCTION book_room (
+    IN floor_number INT,
+    IN room INT,
+    IN booking_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN employee_id INT,
+    )
 
+    INSERT INTO meeting_sessions VALUES (
+        room,
+        floor_number,
+        booking_date,
+        booking_date,
+        employee_id,
+        NULL, 
+    );
+
+$$ LANGUAGE plpgsql 
+
+-- unbook_room: This routine is used to remove booking of a given room. The inputs to the routine should minimally
+-- include:
+-- Floor number
+-- Room number
+-- Date
+-- Start hour
+-- End hour
+-- Employee ID
+-- The employee ID is the ID of the employee that is asking to remove the booking. If this is not the employee doing
+-- the booking, the employee is not allowed to remove booking (the no sabotage rule). If the booking is already
+-- approved, also remove the approval. If there are already employees joining the meeting, also remove them from
+-- the respective tables
 -- CREATE OR REPLACE FUNCTION unbook_room
+CREATE OR REPLACE FUNCTION unbook_room (
+    IN floor_number INT,
+    IN room INT,
+    IN booking_date DATE,
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN employee_id INT,
+    )
 
--- CREATE OR REPLACE FUNCTION join_meeting
+    BEGIN 
+    IF  EXISTS 
+        (SELECT 1 FROM meeting_sessions WHERE 
+            (
+                room = room 
+                AND building_floor = floor_number 
+                AND session_date = booking_date 
+                AND session_time = start_hour 
+                AND booker_id = employee_id
+            )
+        ) THEN 
+
+        DELETE FROM meeting_sessions
+        WHERE (
+            room = room 
+            AND building_floor = floor_number
+            AND session_date = booking_date
+            AND session_time = start_hour
+            AND booker_id = employee_id
+        )
+
+    ELSE 
+        RAISE EXCEPTION 'Booking does not exist';
+    END IF;
+
+    END;
+
+$$ LANGUAGE plpgsql
+
+
+DROP FUNCTION IF EXISTS join_meeting;
+CREATE OR REPLACE FUNCTION join_meeting (
+    IN room_number_ INT,
+    IN floor_number_ INT,
+    IN session_date_ DATE,
+    IN start_hour_ TIME,
+    IN end_hour_ TIME,
+    IN eid_ INT
+    )
+RETURNS VOID AS $$
+
+DECLARE 
+    temp_time TIME := start_hour_;
+    temp_time2 TIME := start_hour_;
+BEGIN
+
+    IF NOT (is_existing_meeting(floor_number_, room_number_, session_date_, start_hour_, end_hour_)) THEN
+        RAISE EXCEPTION 'Meeting session does not exist.';
+    END IF;
+
+    IF (is_approved_session(floor_number_, room_number_, session_date_, start_hour_)) THEN
+        RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
+    END IF;
+
+    IF (is_retired_employee(eid_)) THEN
+        RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
+    END IF;
+
+    IF (has_fever_employee(eid_)) THEN
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+    END IF;
+
+    IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour_ > CURRENT_TIME)) THEN 
+        RAISE EXCEPTION 'Meeting is currently/has already occurred.';
+    END IF;
+
+    IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
+        RAISE EXCEPTION 'The meeting room is already full.';
+    END IF;
+
+    -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
+    -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
+    -- would aggregation help (2.4 in ER pdf)
+
+    -- check clashing 
+    WHILE temp_time2 < end_hour_ LOOP
+        IF EXISTS (
+            SELECT 1 
+            FROM joins j
+            WHERE eid_ = j.eid
+            AND session_date_ = j.session_date
+            AND (
+                temp_time2 = j.session_time
+                OR end_hour_ = j.session_time
+            )) THEN
+            RAISE EXCEPTION 'Employee is already attending a meeting at the same timing';
+        ELSE
+            temp_time2 := temp_time2 + INTERVAL '1 hour';
+        END IF;
+    END LOOP;
+
+     -- if not clashing, assumes employee will attend until the stated hours if start AND end hour is within the session.
+    WHILE temp_time < end_hour_ LOOP
+        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid_, room_number_, floor_number_, session_date_, temp_time);
+        temp_time := temp_time + INTERVAL '1 hour';
+    END LOOP;
+
+END;
+$$ LANGUAGE plpgsql;
+
 
 /**
  * Causes the employee with the given employee_id to leave the meeting with the given parameters.
@@ -530,16 +968,8 @@ BEGIN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
-    IF meeting_date < CURRENT_DATE || (meeting_date = CURRENT_DATE AND end_hour < CURRENT_TIME) THEN
-        RAISE EXCEPTION 'This meeting is already over.';
-    END IF;
-
-    IF meeting_date = CURRENT_DATE AND start_hour < CURRENT_TIME THEN
-        RAISE EXCEPTION 'This meeting has already started.';
-    END IF;
-
     WHILE session_hour < end_hour LOOP
-        IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
+        IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time) THEN
             RAISE EXCEPTION 'None of the sessions in the meeting must already be approved.';
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -635,12 +1065,8 @@ BEGIN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
-    IF meeting_date < CURRENT_DATE || (meeting_date = CURRENT_DATE AND end_hour < CURRENT_TIME) THEN
-        RAISE EXCEPTION 'This meeting would have already been over.';
-    END IF;
-
-    IF meeting_date = CURRENT_DATE AND start_hour < CURRENT_TIME THEN
-        RAISE EXCEPTION 'This meeting would have already started.';
+    IF (meeting_date + start_hour) <= CURRENT_TIMESTAMP THEN
+        RAISE EXCEPTION 'This meeting would have already started or possibly even finished.';
     END IF;
 
     WHILE session_hour < end_hour LOOP
@@ -693,9 +1119,61 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- CREATE OR REPLACE FUNCTION contact_tracing
+CREATE OR REPLACE FUNCTION contact_tracing (
+    employee_id INT
+    )
+RETURNS TABLE (
+    eid INT
+    ) AS $$
+BEGIN
+    RETURN QUERY 
+        SELECT DISTINCT j1.eid
+        FROM joins j1,
+            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
+            FROM meeting_sessions m, joins j
+            WHERE j.eid = employee_id
+            AND j.room = m.room
+            AND j.building_floor = m.building_floor
+            AND j.session_date = m.session_date
+            AND j.session_time = m.session_time
+            AND m.endorser_id IS NOT NULL
+            AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE
+            ) t1
+        WHERE j1.room = t1.room
+        AND j1.building_floor = t1.building_floor
+        AND j1.session_date = t1.session_date
+        AND j1.session_time = t1.session_time
+        AND j1.eid <> employee_id;
+END;
+$$ LANGUAGE plpgsql
 
+CREATE OR REPLACE FUNCTION contact_tracing_procedure()
+RETURNS TRIGGER AS $$
+BEGIN
 
+    -- close contacts removed from D to D+7 meetings
+    DELETE FROM joins j
+    WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
+    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'));
+
+    -- infected emp removed from all future meetings
+    DELETE FROM joins j
+    WHERE j.eid = NEW.eid
+    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
+
+    -- If the employee is the one booking the room, the booking is cancelled, approved or not.
+    DELETE FROM meeting_sessions m
+    WHERE NEW.eid = meeting_sessions.booker_id;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
+CREATE TRIGGER employee_has_fever
+AFTER INSERT ON health_declaration
+FOR EACH ROW
+WHEN (NEW.fever = true)
+EXECUTE FUNCTION contact_tracing_procedure();
 
 /***************************************
  * ADMIN
@@ -792,6 +1270,90 @@ RETURNS TABLE(
 
 $$ LANGUAGE sql;
 
--- CREATE OR REPLACE FUNCTION view_future_meeting
+
+-- -- CREATE OR REPLACE FUNCTION view_future_meeting
+CREATE OR REPLACE FUNCTION view_future_meeting (
+    session_date_ DATE,
+    employee_id INT
+)
+RETURNS TABLE (floor_number INT, room_number INT, session_date DATE, start_hour TIME)
+AS $$
+    BEGIN
+        SELECT j.floor_number, j.room_number, j.session_date, j.session_time
+        FROM meeting_sessions m, joins j
+        WHERE j.eid = employee_id
+        AND j.room = m.room
+        AND j.building_floor = m.building_floor
+        AND j.session_date = m.session_date
+        AND j.session_time = m.session_time
+        AND j.session_date >= session_date_ -- not inclusive of given session date
+        AND endorser_id IS NOT NULL
+        ORDER BY j.session_date, j.session_time
+        ;
+
+    END;
+$$ LANGUAGE plpgsql
+
 
 -- CREATE OR REPLACE FUNCTION view_manager_report
+-- view_manager_report: This routine is to be used by manager to find all meeting rooms that require approval. The
+-- inputs to the routine should minimally include:
+    -- Start date
+    -- Employee ID
+-- If the employee ID does not belong to a manager, the routine returns an empty table. Otherwise, the routine
+-- returns a table containing all meeting that are booked but not yet approved from the given start date onwards.
+-- Note that the routine should only return all meeting in the room with the same department as the manager.
+-- The table returned should minimally include the following columns:
+    -- Floor number
+    -- Room number
+    -- Date
+    -- Start hour
+    -- Employee ID
+-- The table should be sorted in ascending order of date and start hour.
+CREATE OR REPLACE FUNCTION view_manager_report(
+    start_date_ DATE, -- named with a trailing underscore because start_date seems like a postgresql keyword
+    employee_id INT
+)
+RETURNS TABLE(
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME,
+    booker_id INT
+) AS $$
+    BEGIN
+    -- -- OBJECTIVE: find all meeting rooms that require approval
+    -- -- The table returned should minimally include the following columns:
+    -- -- Floor number
+    -- -- Room number
+    -- -- Date
+    -- -- Start hour
+    -- -- Employee ID
+
+        IF NOT EXISTS(SELECT 1 FROM manager m WHERE m.eid = employee_id) THEN
+            -- RETURN NULL;
+            RAISE EXCEPTION 'This employee is not a manager';
+        END IF;
+
+        RETURN QUERY
+
+        SELECT
+            s.building_floor AS floor_number,
+            s.room AS room_number,
+            s.session_date AS session_date,
+            s.session_time AS start_hour,
+            s.booker_id AS booker_id
+        FROM
+            (meeting_sessions NATURAL JOIN meeting_rooms) s
+        WHERE
+            s.session_date >= start_date_ -- returns a table containing all meeting that are booked but not yet approved from the given start date onwards.
+            AND s.endorser_id IS NULL
+            AND EXISTS (SELECT eid FROM (manager NATURAL JOIN employees) m WHERE s.did = m.did AND m.eid = employee_id) -- Note that the routine should only return all meeting in the room with the same department as the manager.
+            
+        -- The table should be sorted in ascending order of date and start hour.
+        ORDER BY
+            s.session_date ASC,
+            s.session_time ASC;
+
+    END
+$$ LANGUAGE plpgsql;
