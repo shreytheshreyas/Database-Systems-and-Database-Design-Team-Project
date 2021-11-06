@@ -27,3 +27,6 @@ SELECT change_capacity(5, 5, 22, '27-10-2021', 1);
 CALL add_employee('Micheal Kane', 'junior', 1, 192832473, 29229292, 1111111);
 -- add_employee, add a new employee with the same name
 CALL add_employee('Micheal Kane', 'junior', 1, 192832473, 29229292, 1111111);
+
+-- remove_employee, removing Micheal Kane
+CALL remove_employee(66, '6/11/2021'::DATE); 
