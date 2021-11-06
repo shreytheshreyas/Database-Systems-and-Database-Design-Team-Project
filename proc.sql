@@ -409,7 +409,7 @@ EXECUTE FUNCTION check_block_past_joins();
 CREATE OR REPLACE FUNCTION block_over_exceed_joins()
 RETURNS TRIGGER AS $$
 BEGIN
-     IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
+     IF (is_meeting_session_full(NEW.building_floor, NEW.room, NEW.session_date, NEW.session_time)) THEN
         RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
     RETURN NEW;
@@ -516,6 +516,7 @@ BEGIN
     RETURN NEW;
 
 END;
+
 $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS not_resigned_session_participant ON joins;
 CREATE TRIGGER not_resigned_session_participant
@@ -540,11 +541,11 @@ BEGIN
 
 END;
 $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS unapproved_meeting_session_exit ON joins;
-CREATE TRIGGER unapproved_meeting_session_exit
-BEFORE DELETE ON joins
-FOR EACH ROW
-EXECUTE FUNCTION check_unapproved_meeting_session_exit();
+-- DROP TRIGGER IF EXISTS unapproved_meeting_session_exit ON joins;
+-- CREATE TRIGGER unapproved_meeting_session_exit
+-- BEFORE DELETE ON joins
+-- FOR EACH ROW
+-- EXECUTE FUNCTION check_unapproved_meeting_session_exit();
 
 /**
  * Constraint 22
@@ -967,9 +968,9 @@ DECLARE
     temp_hour TIME := start_hour;
 BEGIN 
 
-    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
-        RAISE EXCEPTION 'All hours must be exactly on the hour.';
-    END IF;
+    -- IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
+    --     RAISE EXCEPTION 'All hours must be exactly on the hour.';
+    -- END IF;
 
     --cannot use trigger to check clashing because need access to end hour
     WHILE temp_hour <= end_hour LOOP
@@ -982,7 +983,7 @@ BEGIN
     END LOOP;
     
     temp_hour := start_hour;
-    WHILE temp_hour <= end_hour  LOOP
+    WHILE temp_hour < end_hour  LOOP
         INSERT INTO 
             meeting_sessions(
                 room,
@@ -1004,7 +1005,7 @@ BEGIN
 
     --cannot use trigger with this because then we will not have access to end_hour parameter when using NEW.
     temp_hour := start_hour;
-    WHILE temp_hour <= end_hour LOOP
+    WHILE temp_hour < end_hour LOOP
         INSERT INTO joins 
         VALUES (
             employee_id,
@@ -1135,8 +1136,8 @@ $$ LANGUAGE plpgsql;
 
 DROP FUNCTION IF EXISTS join_meeting;
 CREATE OR REPLACE FUNCTION join_meeting (
-    IN room_number_ INT,
     IN floor_number_ INT,
+    IN room_number_ INT,
     IN session_date_ DATE,
     IN start_hour_ TIME,
     IN end_hour_ TIME,
@@ -1161,7 +1162,7 @@ BEGIN
         RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour_) AND is_on_the_hour(end_hour_)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
