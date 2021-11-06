@@ -105,7 +105,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION is_existing_room(
     room_number INT,
-    floor_number INT,
+    floor_number INT
 )
 RETURNS BOOLEAN AS $$
 
@@ -688,14 +688,14 @@ BEGIN
     DELETE FROM meeting_sessions m
     WHERE NEW.room = m.room
     AND NEW.building_floor = m.building_floor
-    AND OLD.update_new_cap > NEW.update_new_cap
+    AND OLD.updated_new_cap > NEW.updated_new_cap;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS update_capacity ON meeting_rooms;
 CREATE TRIGGER update_capacity
-AFTER UPDATE OF update_new_cap ON meeting_rooms
+AFTER UPDATE OF updated_new_cap ON meeting_rooms
 FOR EACH ROW
 EXECUTE FUNCTION check_update_capacity();
 
@@ -771,23 +771,24 @@ $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 CREATE OR REPLACE PROCEDURE change_capacity
 	(IN floor_number INT, IN room_number INT, IN capacity INT, IN change_date DATE, IN employee_id INT)
 AS $$
+    BEGIN 
+        IF NOT is_existing_manager(employee_id) THEN
+            RAISE EXCEPTION 'Only managers are allowed to change room capacities';
+        END IF;
 
-    IF NOT is_existing_manager(employee_id) THEN
-        RAISE EXCEPTION 'Only managers are allowed to change room capacities';
-    END IF;
+        IF NOT is_existing_room(room_number, floor_number) THEN
+            RAISE EXCEPTION 'Meeting room does not exist.';
+        END IF;
 
-    IF NOT is_existing_room(room_number, floor_number) THEN
-        RAISE EXCEPTION 'Meeting room does not exist.';
-    END IF;
-
-    IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
-        RAISE EXCEPTION 'Only managers of the same department as the room are authorised to change room capacity.';
-    END IF;
-    
-	UPDATE meeting_rooms
-	SET updated_new_cap = capacity, updated_date = change_date
-	WHERE building_floor = floor_number AND room = room_number;
-$$ LANGUAGE sql;
+        IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
+            RAISE EXCEPTION 'Only managers of the same department as the room are authorised to change room capacity.';
+        END IF;
+        
+        UPDATE meeting_rooms 
+        SET updated_new_cap = capacity, updated_date = change_date
+        WHERE building_floor = floor_number AND room = room_number;
+    END;
+$$ LANGUAGE plpgsql;
 
 -- add_employee
 --passed
@@ -875,6 +876,7 @@ RETURNS TRIGGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS cancel_resign_emp_meeting ON employees;
 CREATE TRIGGER cancel_resign_emp_meeting 
     BEFORE UPDATE ON employees 
     FOR EACH ROW EXECUTE FUNCTION 
@@ -906,7 +908,7 @@ CREATE OR REPLACE FUNCTION search_room (
             RAISE EXCEPTION 'Please enter a valid date';
         END IF;
 
-        IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
             RAISE EXCEPTION 'All hours must be exactly on the hour.';
         END IF;
         
@@ -965,7 +967,7 @@ DECLARE
     temp_hour TIME := start_hour;
 BEGIN 
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1277,7 +1279,7 @@ BEGIN
     END IF;
 
     IF is_booker_of_some_session THEN
-        unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
+        SELECT unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
     ELSE
         DELETE FROM
             joins j
@@ -1436,7 +1438,7 @@ BEGIN
     LOOP
         FETCH table_cursor INTO table_record;
         EXIT WHEN NOT FOUND;
-
+        
         --This loop is the nested loop
         WHILE temp_date <= end_date LOOP
             IF NOT EXISTS(SELECT 1 FROM health_declaration hd WHERE hd.eid = table_record.eid AND hd.declaration_date = temp_date) THEN
