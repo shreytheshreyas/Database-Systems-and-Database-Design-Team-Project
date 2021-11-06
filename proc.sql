@@ -664,8 +664,8 @@ $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 
 -- CREATE OR REPLACE FUNCTION change_capacity
 
-CREATE OR REPLACE PROCEDURE ChangeCapacity
-	(IN floor_number INT, IN room_number INT, IN capacity INT, IN date DATE)
+CREATE OR REPLACE PROCEDURE change_capacity
+	(IN floor_number INT, IN room_number INT, IN capacity INT, IN change_date DATE, employee_id INT)
 AS $$
 
     IF NOT is_existing_manager(employee_id) THEN
@@ -673,7 +673,7 @@ AS $$
     END IF;
 
     IF NOT is_existing_room(room_number, floor_number) THEN
-        RAISE EXCEPTION 'Meeting room does not exist.'
+        RAISE EXCEPTION 'Meeting room does not exist.';
     END IF;
 
     IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
@@ -681,7 +681,7 @@ AS $$
     END IF;
     
 	UPDATE meeting_rooms
-	SET updated_new_cap = capacity, updated_date = date
+	SET updated_new_cap = capacity, updated_date = change_date
 	WHERE building_floor = floor_number AND room = room_number;
 $$ LANGUAGE sql;
 
@@ -757,6 +757,22 @@ CREATE OR REPLACE PROCEDURE remove_employee(
     END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER cancel_resign_emp_meeting 
+    BEFORE UPDATE ON employees 
+    FOR EACH ROW EXECUTE FUNCTION 
+    cancel_resign_emp_meeting_fn();
+
+CREATE OR REPLACE FUNCTION cancel_resign_emp_meeting_fn()
+RETURNS TRIGGER AS $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM meeting_sessions m WHERE m.endorser_id = OLD.eid) THEN
+            UPDATE meeting_sessions m SET endoser_id = NULL WHERE endorser_id = OLD.eid;
+        END IF; 
+        IF EXISTS (SELECT 1 FROM meeting_sessions m WHERE m.booker.id = OLD.eid) THEN 
+            DELETE FROM meeting_sessions m WHERE m.booker_id = OLD.eid;
+        END IF;
+    END;
+$$ LANGUAGE plpgsql;
 /***************************************
  * CORE
  **************************************/
