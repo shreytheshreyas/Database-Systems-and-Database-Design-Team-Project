@@ -24,9 +24,10 @@ SELECT view_future_meeting('31/10/2021', 10);
 
 -- employee id does not belong to manager, return empty table
 SELECT view_manager_report('2021-11-15', 11);
-
-SELECT view_manager_report('2021-10-31', 10);
-
+SELECT view_manager_report('2021-10-31', 1);
+--2 rows
+SELECT view_manager_report('2021-10-27', 2);
+--2 rows
 
 
 
