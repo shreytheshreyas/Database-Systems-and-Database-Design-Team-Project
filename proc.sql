@@ -1341,7 +1341,7 @@ BEGIN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1363,7 +1363,7 @@ BEGIN
     UPDATE
         meeting_sessions s
     SET
-        s.endorser_id = employee_id
+        endorser_id = employee_id
     WHERE
         s.building_floor = floor_number
         AND s.room = room_number
