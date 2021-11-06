@@ -668,8 +668,8 @@ BEGIN
     WHERE j.eid = NEW.eid
     AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
 
-    DELETE FROM meeting_sessions m
-    WHERE NEW.eid = m.booker_id;
+    -- DELETE FROM meeting_sessions m
+    -- WHERE NEW.eid = m.booker_id;
 
     RETURN NEW;
 END;
@@ -1341,7 +1341,7 @@ BEGIN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1361,15 +1361,15 @@ BEGIN
     END LOOP;
 
     UPDATE
-        meeting_sessions s
+        meeting_sessions
     SET
-        s.endorser_id = employee_id
+        endorser_id = employee_id
     WHERE
-        s.building_floor = floor_number
-        AND s.room = room_number
-        AND s.session_date = meeting_date
-        AND s.session_time >= start_hour
-        AND s.session_time < end_hour;
+        building_floor = floor_number
+        AND room = room_number
+        AND session_date = meeting_date
+        AND session_time >= start_hour
+        AND session_time < end_hour;
 
 END;
 $$ LANGUAGE plpgsql;
