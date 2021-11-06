@@ -382,10 +382,6 @@ SELECT approve_meeting(1, 1, '15/11/2021'::DATE, '15:00'::TIME, '15:59'::TIME, 1
 -- non-existent meeting
 SELECT 'Test case: non-existent meeting';
 SELECT 'Expected error: This meeting does not exist.';
-SELECT approve_meeting(0, 1, '15/11/2021'::DATE, '15:00'::TIME, '16:00'::TIME, 1);
-SELECT 'Expected error: This meeting does not exist.';
-SELECT approve_meeting(1, 0, '15/11/2021'::DATE, '15:00'::TIME, '16:00'::TIME, 1);
-SELECT 'Expected error: This meeting does not exist.';
 SELECT approve_meeting(1, 1, '15/11/2020'::DATE, '15:00'::TIME, '16:00'::TIME, 1);
 SELECT 'Expected error: This meeting does not exist.';
 SELECT approve_meeting(1, 1, '15/11/2021'::DATE, '14:00'::TIME, '15:00'::TIME, 1);
