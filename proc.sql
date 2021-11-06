@@ -103,6 +103,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION is_existing_room(
+    room_number INT,
+    floor_number INT,
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            meeting_rooms r
+        WHERE
+            r.room = room_number
+        AND
+            r.building_floor = floor_number
+    );
+
+$$ LANGUAGE sql;
+
 CREATE OR REPLACE FUNCTION is_approved_session(
     floor_number INT,
     room_number INT,
@@ -625,14 +644,29 @@ RETURNS VOID AS $$
 $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 
 -- CREATE OR REPLACE FUNCTION change_capacity
-CREATE OR REPLACE PROCEDURE ChangeCapacity
-	(IN floor_number INT, IN room_number INT, IN capacity INT, IN date DATE)
+CREATE OR REPLACE PROCEDURE ChangeCapacity(
+    IN floor_number INT,
+    IN room_number INT,
+    IN capacity INT,
+    IN date DATE,
+    IN employee_id INT
+)
 AS $$
+
+    IF NOT is_existing_manager(employee_id) THEN
+        RAISE EXCEPTION 'Only managers are allowed to change room capacities';
+    END IF;
+
+    IF NOT is_existing_room(room_number, floor_number) THEN
+        RAISE EXCEPTION 'Meeting room does not exist.'
+
+    IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
+        RAISE EXCEPTION 'Only managers of the same department as the room are authorised to change room capacity.';
+
 	UPDATE meeting_rooms
 	SET updated_new_cap = capacity, updated_date = date
 	WHERE building_floor = floor_number AND room = room_number;
 $$ LANGUAGE sql;
-
 
 -- add_employee
 CREATE OR REPLACE PROCEDURE add_employee(
