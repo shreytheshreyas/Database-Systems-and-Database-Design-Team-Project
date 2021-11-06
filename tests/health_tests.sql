@@ -16,22 +16,22 @@ CALL declare_health (1, '5/11/2021'::DATE, 36.4);
 -- all 4 employees from same department join meeting room: 3 floor: 2  date: 2021-01-11 
 -- room 3, 2, from department 6
 
-SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 7);
-SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 17);
-SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 27);
-SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 37);
+-- SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 7);
+-- SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 17);
+-- SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 27);
+-- SELECT join_meeting (3, 2, '1/11/2021'::DATE, '11:00'::TIME, '12:00'::TIME, 37);
 
 -- current error i am getting w the above code:
 -- psql:./Documents/code/cs2102-group-project/tests/health_tests.sql:19: ERROR:  Meeting has been approved, employee disallowed to join.
 -- CONTEXT:  PL/pgSQL function join_meeting(integer,integer,date,time without time zone,time without time zone,integer) line 13 at RAISE
 
 -- -- meeting that has not been approved yet
--- SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 3);
--- SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 9);
--- SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 19);
--- SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 29);
+SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 2);
+SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 12);
+SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 22);
+SELECT join_meeting (4, 3, '12/11/2021'::DATE, '16:00'::TIME, '17:00'::TIME, 32);
 
 -- make one employee sick
-CALL declare_health (7, '5/11/2021'::DATE, 38); 
--- run contact_tracing
-SELECT contact_tracing (7);
+-- CALL declare_health (2, '5/11/2021'::DATE, 38); 
+-- -- run contact_tracing
+-- SELECT contact_tracing (2);
