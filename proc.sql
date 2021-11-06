@@ -592,6 +592,8 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_not_started();
 
+
+
 /**
  * Contact Tracing constraints:
  * 1. The employee is removed from all future meeting room booking, approved or not.
@@ -871,6 +873,10 @@ DECLARE
     temp_hour TIME := start_hour;
 BEGIN 
 
+    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        RAISE EXCEPTION 'All hours must be exactly on the hour.';
+    END IF;
+
     --cannot use trigger to check clashing because need access to end hour
     WHILE temp_hour <= end_hour LOOP
 
@@ -901,6 +907,7 @@ BEGIN
 
         temp_hour := temp_hour + interval '1 hour';
     END LOOP;
+
     --cannot use trigger with this because then we will not have access to end_hour parameter when using NEW.
     temp_hour := start_hour;
     WHILE temp_hour <= end_hour LOOP
@@ -1060,6 +1067,10 @@ BEGIN
         RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
     END IF;
 
+    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        RAISE EXCEPTION 'All hours must be exactly on the hour.';
+    END IF;
+
     IF (has_fever_employee(eid_)) THEN
         RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid; -- eid was causing an error need to find out if it actually works, otherwise remove it 
     END IF;
@@ -1071,10 +1082,6 @@ BEGIN
     IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
         RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
-
-    -- need some adv: this will result in multiple rows for each empl at each hour per meeting.
-    -- alot of duplicates sharing similar info like room no, building no. for the same entry. would it be considered a functional dependency?
-    -- would aggregation help (2.4 in ER pdf)
 
     -- check clashing 
     WHILE temp_time2 < end_hour_ LOOP
