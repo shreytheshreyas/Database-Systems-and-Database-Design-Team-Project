@@ -659,10 +659,12 @@ AS $$
 
     IF NOT is_existing_room(room_number, floor_number) THEN
         RAISE EXCEPTION 'Meeting room does not exist.'
+    END IF;
 
     IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
         RAISE EXCEPTION 'Only managers of the same department as the room are authorised to change room capacity.';
-
+    END IF;
+    
 	UPDATE meeting_rooms
 	SET updated_new_cap = capacity, updated_date = date
 	WHERE building_floor = floor_number AND room = room_number;
