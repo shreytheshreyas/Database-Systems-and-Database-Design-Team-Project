@@ -283,27 +283,27 @@ $$ LANGUAGE sql;
 
 DROP FUNCTION IF EXISTS is_meeting_session_full;
 CREATE OR REPLACE FUNCTION is_meeting_session_full(
-    floor_number_ INT,
-    room_number_ INT,
-    session_date_ DATE,
-    start_hour_ TIME
+    floor_number INT,
+    room_number INT,
+    meeting_session_date DATE,
+    start_hour TIME
 )
 RETURNS BOOLEAN AS $$ 
 DECLARE
     capacity INTEGER := (
         SELECT updated_new_cap
         FROM meeting_rooms r
-        WHERE floor_number_ = r.building_floor
-        AND room_number_ = r.room
+        WHERE floor_number = r.building_floor
+        AND room_number = r.room
     ); --if storing old record, just sieve out latest date
     
     current_attendance INTEGER := (
         SELECT COUNT(*)
         FROM joins j
-        WHERE j.room = room_number_
-        AND j.building_floor = floor_number_
-        AND j.session_date = session_date_
-        AND j.session_time = start_hour_
+        WHERE j.room = room_number
+        AND j.building_floor = floor_number
+        AND j.session_date = meeting_session_date
+        AND j.session_time = start_hour
     );
 
 BEGIN
@@ -409,7 +409,7 @@ EXECUTE FUNCTION check_block_past_joins();
 CREATE OR REPLACE FUNCTION block_over_exceed_joins()
 RETURNS TRIGGER AS $$
 BEGIN
-     IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
+    IF (is_meeting_session_full(NEW.building_floor, NEW.room, NEW.session_date, NEW.session_time)) THEN
         RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
     RETURN NEW;
@@ -1133,58 +1133,58 @@ $$ LANGUAGE plpgsql;
 
 DROP FUNCTION IF EXISTS join_meeting;
 CREATE OR REPLACE FUNCTION join_meeting (
-    IN room_number_ INT,
-    IN floor_number_ INT,
+    IN room INT,
+    IN building_floor INT,
     IN session_date_ DATE,
-    IN start_hour_ TIME,
-    IN end_hour_ TIME,
-    IN eid_ INT
+    IN start_hour TIME,
+    IN end_hour TIME,
+    IN employee_id INT
     )
 RETURNS VOID AS $$
 
 DECLARE 
-    temp_time TIME := start_hour_;
-    temp_time2 TIME := start_hour_;
+    temp_time TIME := start_hour;
+    temp_time2 TIME := start_hour;
 BEGIN
 
-    IF NOT (is_existing_meeting(floor_number_, room_number_, session_date_, start_hour_, end_hour_)) THEN
-        RAISE EXCEPTION 'Meeting session does not exist.';
-    END IF;
+    -- IF NOT (is_existing_meeting(building_floor, room, session_date_, start_hour, end_hour)) THEN
+    --     RAISE EXCEPTION 'Meeting session does not exist.';
+    -- END IF;
 
-    IF (is_approved_session(floor_number_, room_number_, session_date_, start_hour_)) THEN
+    IF (is_approved_session(building_floor, room, session_date_, start_hour)) THEN
         RAISE EXCEPTION 'Meeting has been approved, employee disallowed to join.';
     END IF;
 
-    IF (is_retired_employee(eid_)) THEN
+    IF (is_retired_employee(employee_id)) THEN
         RAISE EXCEPTION 'Retired employees are not allowed to join meetings.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
-        RAISE EXCEPTION 'All hours must be exactly on the hour.';
-    END IF;
+    -- IF NOT (is_on_the_hour(start_hour_) && is_on_the_hour(end_hour_)) THEN
+    --     RAISE EXCEPTION 'All hours must be exactly on the hour.';
+    -- END IF;
 
-    IF (has_fever_employee(eid_)) THEN
+    IF (has_fever_employee(employee_id)) THEN
         RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid; -- eid was causing an error need to find out if it actually works, otherwise remove it 
     END IF;
 
-    IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour_ > CURRENT_TIME)) THEN 
+    IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour > CURRENT_TIME)) THEN 
         RAISE EXCEPTION 'Meeting is currently/has already occurred.';
     END IF;
 
-    IF (is_meeting_session_full(floor_number_, room_number_, session_date_, start_hour_)) THEN
+    IF (is_meeting_session_full(building_floor, room, session_date_, start_hour)) THEN
         RAISE EXCEPTION 'The meeting room is already full.';
     END IF;
 
     -- check clashing 
-    WHILE temp_time2 < end_hour_ LOOP
+    WHILE temp_time2 < end_hour LOOP
         IF EXISTS (
             SELECT 1 
             FROM joins j
-            WHERE eid_ = j.eid
+            WHERE employee_id = j.eid
             AND session_date_ = j.session_date
             AND (
                 temp_time2 = j.session_time
-                OR end_hour_ = j.session_time
+                OR end_hour = j.session_time
             )) THEN
             RAISE EXCEPTION 'Employee is already attending a meeting at the same timing';
         ELSE
@@ -1193,13 +1193,15 @@ BEGIN
     END LOOP;
 
      -- if not clashing, assumes employee will attend until the stated hours if start AND end hour is within the session.
-    WHILE temp_time < end_hour_ LOOP
-        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (eid_, room_number_, floor_number_, session_date_, temp_time);
+    WHILE temp_time < end_hour LOOP
+        INSERT INTO joins(eid, room, building_floor, session_date, session_time) VALUES (employee_id, building_floor, room, session_date_, temp_time);
         temp_time := temp_time + INTERVAL '1 hour';
     END LOOP;
 
 END;
 $$ LANGUAGE plpgsql;
+SELECT join_meeting(1, 1, '2021-11-15', '15:00:00', '16:00:00', 10); -- add new meeting(+1 row)
+
 
 
 /**
@@ -1516,23 +1518,25 @@ CREATE OR REPLACE FUNCTION view_future_meeting (
     session_date_ DATE,
     employee_id INT
 )
-RETURNS TABLE (floor_number INT, room_number INT, session_date DATE, start_hour TIME)
+RETURNS TABLE (
+    floor_number INT,
+    room_number INT,
+    session_date DATE,
+    start_hour TIME
+    )
 AS $$
-    BEGIN
-        SELECT j.floor_number, j.room_number, j.session_date, j.session_time
-        FROM meeting_sessions m, joins j
-        WHERE j.eid = employee_id
-        AND j.room = m.room
-        AND j.building_floor = m.building_floor
-        AND j.session_date = m.session_date
-        AND j.session_time = m.session_time
-        AND j.session_date >= session_date_ -- not inclusive of given session date
-        AND endorser_id IS NOT NULL
-        ORDER BY j.session_date, j.session_time
-        ;
-
-    END;
-$$ LANGUAGE plpgsql;
+    SELECT j.building_floor, j.room, j.session_date, j.session_time
+    FROM meeting_sessions m, joins j
+    WHERE j.eid = employee_id
+    AND j.room = m.room
+    AND j.building_floor = m.building_floor
+    AND j.session_date = m.session_date
+    AND j.session_time = m.session_time
+    AND j.session_date >= session_date_ -- not inclusive of given session date
+    AND endorser_id IS NOT NULL
+    ORDER BY j.session_date, j.session_time
+    ;
+$$ LANGUAGE sql;
 
 
 -- CREATE OR REPLACE FUNCTION view_manager_report
@@ -1561,22 +1565,19 @@ RETURNS TABLE(
     start_hour TIME,
     booker_id INT
 ) AS $$
-    BEGIN
-    -- -- OBJECTIVE: find all meeting rooms that require approval
-    -- -- The table returned should minimally include the following columns:
-    -- -- Floor number
-    -- -- Room number
-    -- -- Date
-    -- -- Start hour
-    -- -- Employee ID
-
-        IF NOT EXISTS(SELECT 1 FROM manager m WHERE m.eid = employee_id) THEN
-            -- RETURN NULL;
-            RAISE EXCEPTION 'This employee is not a manager';
-        END IF;
-
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM manager m WHERE m.eid = employee_id) THEN
         RETURN QUERY
-
+        SELECT
+            m.building_floor AS floor_number,
+            m.room AS room_number,
+            m.session_date AS session_date,
+            m.session_time AS start_hour,
+            m.booker_id AS booker_id
+        FROM meeting_sessions m WHERE 1=0;
+        -- RAISE EXCEPTION 'This employee is not a manager';
+    ELSE
+        RETURN QUERY
         SELECT
             s.building_floor AS floor_number,
             s.room AS room_number,
@@ -1589,11 +1590,11 @@ RETURNS TABLE(
             s.session_date >= start_date_ -- returns a table containing all meeting that are booked but not yet approved from the given start date onwards.
             AND s.endorser_id IS NULL
             AND EXISTS (SELECT eid FROM (manager NATURAL JOIN employees) m WHERE s.did = m.did AND m.eid = employee_id) -- Note that the routine should only return all meeting in the room with the same department as the manager.
-            
+                
         -- The table should be sorted in ascending order of date and start hour.
         ORDER BY
             s.session_date ASC,
             s.session_time ASC;
-
-    END;
+    END IF;
+END;
 $$ LANGUAGE plpgsql;
