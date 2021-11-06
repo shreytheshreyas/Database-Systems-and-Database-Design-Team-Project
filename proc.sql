@@ -567,7 +567,8 @@ EXECUTE FUNCTION check_meeting_session_not_started();
 /**
  * Adds a new department with given parameters
  * only if did is unique.
- */
+ */ 
+--passed 
 CREATE OR REPLACE FUNCTION add_department(
     IN did INTEGER,
     IN dname TEXT
@@ -582,12 +583,13 @@ $$ Language sql;
 /**
  * Removes a department specified by did parameter
  */
+ --passed
 CREATE OR REPLACE FUNCTION remove_department(
-    IN did INT
+    IN department_id INT
 )
 RETURNS VOID AS $$
 
-	DELETE FROM Departments WHERE Departments.did = did;
+	DELETE FROM Departments WHERE Departments.did = department_id;
     -- need ON DELETE for FK constraints in schema to execute assumptions
 
 $$ Language sql;
@@ -596,6 +598,7 @@ $$ Language sql;
  * Adds a meeting room with the given parameters.
  * The parameters are self-explanatory.
  */
+ --passed
 CREATE OR REPLACE FUNCTION add_room(
     floor_number INT,
     room_number INT,
@@ -625,6 +628,7 @@ RETURNS VOID AS $$
 $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 
 -- CREATE OR REPLACE FUNCTION change_capacity
+-- passed
 CREATE OR REPLACE PROCEDURE ChangeCapacity
 	(IN floor_number INT, IN room_number INT, IN capacity INT, IN date DATE)
 AS $$
@@ -635,6 +639,7 @@ $$ LANGUAGE sql;
 
 
 -- add_employee
+--passed
 CREATE OR REPLACE PROCEDURE add_employee(
     IN employee_name TEXT,
     IN employee_kind TEXT,
@@ -685,6 +690,7 @@ FOR EACH ROW EXECUTE FUNCTION
 
 
 -- remove employee
+-- passed
 CREATE OR REPLACE PROCEDURE remove_employee(
     IN employee_id INTEGER,
     IN employee_regination_date DATE
@@ -703,6 +709,7 @@ CREATE OR REPLACE PROCEDURE remove_employee(
 
     END;
 $$ LANGUAGE plpgsql;
+
 /***************************************
  * CORE
  **************************************/
