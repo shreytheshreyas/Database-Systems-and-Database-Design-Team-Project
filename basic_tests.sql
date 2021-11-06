@@ -21,12 +21,12 @@ SELECT add_room(1, 1, 'Room One', 10, 1);
 SELECT add_room(5, 5, 'Room Five Again', 10, 1);
 
 -- change_capacity
-CALL change_capacity(5, 5, 22, '27-10-2021', 1);
+CALL change_capacity(5, 5, 22, '27-10-2021', 2);
 
 -- add_employee, add a new employee
-CALL add_employee('Micheal Kane', 'junior', 1, 192832473, 29229292, 1111111);
+CALL add_employee('Micheal Kane', 'junior', 1, 89283247, 69229292, 61111111);
 -- add_employee, add a new employee with the same name
-CALL add_employee('Micheal Kane', 'junior', 1, 192832473, 29229292, 1111111);
+CALL add_employee('Micheal Kane', 'junior', 1, 89283247, 69229292, 61111111);
 
 -- remove_employee, removing Micheal Kane
-CALL remove_employee(66, '6/11/2021'::DATE); 
+CALL remove_employee(76, '6/11/2021'::DATE); 
