@@ -856,7 +856,7 @@ CREATE OR REPLACE FUNCTION has_fever_recently()
     dec_date := (SELECT declaration_date FROM health_declaration WHERE eid = NEW.booker_id
                 AND fever = TRUE ORDER BY declaration_date DESC LIMIT 1);
 
-    IF NEW.session_date < dec_date + integer '7' THEN
+    IF NEW.session_date <= dec_date + integer '7' THEN
         RAISE EXCEPTION 'The employee cannot make a booking because he has a fever and cannot participate within 7 days from when he has the fever'; 
     END IF;
 
