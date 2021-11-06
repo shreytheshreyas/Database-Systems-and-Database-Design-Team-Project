@@ -689,6 +689,7 @@ BEGIN
     WHERE NEW.room = m.room
     AND NEW.building_floor = m.building_floor
     AND OLD.update_new_cap > NEW.update_new_cap
+    AND m.session_date > NEW.updated_date
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql
