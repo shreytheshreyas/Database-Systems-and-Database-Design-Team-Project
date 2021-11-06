@@ -263,6 +263,18 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION is_on_the_hour(
+    time_to_check TIME
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT
+        date_trunc('hour', t.timestamp_to_check) = t.timestamp_to_check
+    FROM
+        (SELECT
+            CURRENT_DATE + time_to_check AS timestamp_to_check) t;
+
+$$ LANGUAGE sql;
 
 /**
  * returns True when meeting room is already at
@@ -335,13 +347,17 @@ DECLARE
 BEGIN
     WHILE session_hour < end_hour LOOP
         IF is_existing_session(floor_number, room_number, meeting_date, start_hour) THEN
-            ctr := ctr + 1
+            ctr := ctr + 1;
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
     END LOOP;       
     RETURN ctr;
 END;
-$$ LANGUAGE sql;
+$$ LANGUAGE plpgsql;
+
+-- CREATE OR REPLACE { FUNCTION | PROCEDURE } <routine name>
+
+
 
 /***************************************
  * TRIGGERS
@@ -586,7 +602,8 @@ EXECUTE FUNCTION check_meeting_session_not_started();
 /**
  * Adds a new department with given parameters
  * only if did is unique.
- */
+ */ 
+--passed 
 CREATE OR REPLACE FUNCTION add_department(
     IN did INTEGER,
     IN dname TEXT
@@ -601,12 +618,13 @@ $$ Language sql;
 /**
  * Removes a department specified by did parameter
  */
+ --passed
 CREATE OR REPLACE FUNCTION remove_department(
-    IN did INT
+    IN department_id INT
 )
 RETURNS VOID AS $$
 
-	DELETE FROM Departments WHERE Departments.did = did;
+	DELETE FROM Departments WHERE Departments.did = department_id;
     -- need ON DELETE for FK constraints in schema to execute assumptions
 
 $$ Language sql;
@@ -615,6 +633,7 @@ $$ Language sql;
  * Adds a meeting room with the given parameters.
  * The parameters are self-explanatory.
  */
+ --passed
 CREATE OR REPLACE FUNCTION add_room(
     floor_number INT,
     room_number INT,
@@ -644,13 +663,9 @@ RETURNS VOID AS $$
 $$ LANGUAGE sql; -- plpgsql would be overkill here; only sql is used
 
 -- CREATE OR REPLACE FUNCTION change_capacity
-CREATE OR REPLACE PROCEDURE ChangeCapacity(
-    IN floor_number INT,
-    IN room_number INT,
-    IN capacity INT,
-    IN date DATE,
-    IN employee_id INT
-)
+
+CREATE OR REPLACE PROCEDURE ChangeCapacity
+	(IN floor_number INT, IN room_number INT, IN capacity INT, IN date DATE)
 AS $$
 
     IF NOT is_existing_manager(employee_id) THEN
@@ -671,6 +686,7 @@ AS $$
 $$ LANGUAGE sql;
 
 -- add_employee
+--passed
 CREATE OR REPLACE PROCEDURE add_employee(
     IN employee_name TEXT,
     IN employee_kind TEXT,
@@ -721,6 +737,7 @@ FOR EACH ROW EXECUTE FUNCTION
 
 
 -- remove employee
+-- passed
 CREATE OR REPLACE PROCEDURE remove_employee(
     IN employee_id INTEGER,
     IN employee_regination_date DATE
@@ -739,6 +756,7 @@ CREATE OR REPLACE PROCEDURE remove_employee(
 
     END;
 $$ LANGUAGE plpgsql;
+
 /***************************************
  * CORE
  **************************************/
@@ -763,6 +781,10 @@ CREATE OR REPLACE FUNCTION search_room (
     BEGIN
         IF availability_date <= CURRENT_DATE THEN 
             RAISE EXCEPTION 'Please enter a valid date';
+        END IF;
+
+        IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+            RAISE EXCEPTION 'All hours must be exactly on the hour.';
         END IF;
         
         OPEN tableCursor;
@@ -813,19 +835,110 @@ CREATE OR REPLACE FUNCTION book_room (
     IN booking_date DATE,
     IN start_hour TIME,
     IN end_hour TIME,
-    IN employee_id INT,
+    IN employee_id INT
     )
+RETURNS VOID AS $$
+DECLARE 
+    temp_hour TIME := start_hour;
+BEGIN 
 
-    INSERT INTO meeting_sessions VALUES (
-        room,
-        floor_number,
-        booking_date,
-        booking_date,
-        employee_id,
-        NULL, 
-    );
+    --cannot use trigger to check clashing because need access to end hour
+    WHILE temp_hour <= end_hour LOOP
 
-$$ LANGUAGE plpgsql 
+        IF EXISTS(SELECT 1 FROM meeting_sessions m WHERE m.session_date = booking_date AND 
+        m.session_time = temp_hour) THEN 
+            RAISE EXCEPTION 'the booker cannot participate in the meeting, please choose another timing';
+        END IF;
+        temp_hour := temp_hour + interval '1 hour';
+    END LOOP;
+    
+    temp_hour := start_hour;
+    WHILE temp_hour <= end_hour  LOOP
+        INSERT INTO 
+            meeting_sessions(
+                room,
+                building_floor,
+                session_date,
+                session_time,
+                booker_id
+            )
+            VALUES (
+                room,
+                floor_number,
+                booking_date,
+                temp_hour,
+                employee_id
+            );
+
+        temp_hour := temp_hour + interval '1 hour';
+    END LOOP;
+    --cannot use trigger with this because then we will not have access to end_hour parameter when using NEW.
+    temp_hour := start_hour;
+    WHILE temp_hour <= end_hour LOOP
+        INSERT INTO joins 
+        VALUES (
+            employee_id,
+            room,
+            floor_number,
+            booking_date,
+            temp_hour
+        );
+
+        temp_hour := temp_hour + interval '1 hour';
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION has_fever_recently()
+    RETURNS TRIGGER AS $$
+    DECLARE 
+    employee_id INTEGER;
+    dec_date DATE;
+    isFever BOOLEAN;
+    temp_date DATE;
+    recent_declare_date DATE;
+    myCounter INTEGER := 1;
+    BEGIN 
+
+    IF NOT EXISTS(SELECT 1 FROM health_declaration WHERE eid = NEW.booker_id)  THEN 
+        RAISE EXCEPTION 'Employee has never declared their temperature, temperature needs to be declared before room booking can be done';
+    END IF;
+    
+    dec_date := (SELECT declaration_date FROM health_declaration WHERE eid = NEW.booker_id
+                AND fever = TRUE ORDER BY declaration_date DESC LIMIT 1);
+
+    IF NEW.session_date <= dec_date + integer '7' THEN
+        RAISE EXCEPTION 'The employee cannot make a booking because he has a fever and cannot participate within 7 days from when he has the fever'; 
+    END IF;
+
+    RETURN NEW; --insertion occurs
+    END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS check_has_fever_recently ON meeting_sessions;
+CREATE TRIGGER check_has_fever_recently
+    BEFORE INSERT ON meeting_sessions
+    FOR EACH ROW EXECUTE FUNCTION 
+    has_fever_recently();
+
+CREATE OR REPLACE FUNCTION booker_is_resign_emp_fn() 
+    RETURNS TRIGGER AS $$
+    BEGIN 
+
+    IF is_retired_employee(NEW.booker_id) THEN
+        RAISE EXCEPTION 'resigned employee cannot make a booking';
+    END IF; 
+
+    RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS booker_is_resign_emp ON meeting_sessions;
+CREATE TRIGGER booker_is_resign_emp
+    BEFORE INSERT ON meeting_sessions
+    FOR EACH ROW EXECUTE FUNCTION 
+    booker_is_resign_emp_fn();
+
 
 -- unbook_room: This routine is used to remove booking of a given room. The inputs to the routine should minimally
 -- include:
@@ -842,33 +955,44 @@ $$ LANGUAGE plpgsql
 -- CREATE OR REPLACE FUNCTION unbook_room
 CREATE OR REPLACE FUNCTION unbook_room (
     IN floor_number INT,
-    IN room INT,
+    IN room_num INT,
     IN booking_date DATE,
     IN start_hour TIME,
     IN end_hour TIME,
-    IN employee_id INT,
+    IN employee_id INT
     )
-
+RETURNS VOID AS $$
+    DECLARE 
+        flag INTEGER:= 1;
+        temp_hour TIME := start_hour;
     BEGIN 
-    IF  EXISTS 
-        (SELECT 1 FROM meeting_sessions WHERE 
-            (
-                room = room 
-                AND building_floor = floor_number 
-                AND session_date = booking_date 
-                AND session_time = start_hour 
-                AND booker_id = employee_id
-            )
-        ) THEN 
 
-        DELETE FROM meeting_sessions
-        WHERE (
-            room = room 
-            AND building_floor = floor_number
-            AND session_date = booking_date
-            AND session_time = start_hour
-            AND booker_id = employee_id
-        )
+    WHILE temp_hour < end_hour LOOP
+        IF NOT EXISTS(SELECT 1 FROM meeting_sessions m WHERE 
+                m.room = room_num 
+                AND m.building_floor = floor_number 
+                AND m.session_date = booking_date 
+                AND m.session_time = temp_hour 
+                AND m.booker_id = employee_id
+            ) THEN 
+            flag = 0;
+            EXIT;
+        END IF;
+
+        temp_hour := temp_hour + interval '1 hour';
+
+    END LOOP;
+
+    IF  flag = 1 THEN
+
+        DELETE FROM meeting_sessions m
+        WHERE 
+            m.room = room_num 
+            AND m.building_floor = floor_number
+            AND m.session_date = booking_date
+            AND m.session_time >= start_hour
+            AND m.session_time < end_hour
+            AND m.booker_id = employee_id;
 
     ELSE 
         RAISE EXCEPTION 'Booking does not exist';
@@ -876,7 +1000,7 @@ CREATE OR REPLACE FUNCTION unbook_room (
 
     END;
 
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
 
 DROP FUNCTION IF EXISTS join_meeting;
@@ -908,7 +1032,7 @@ BEGIN
     END IF;
 
     IF (has_fever_employee(eid_)) THEN
-        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid; -- eid was causing an error need to find out if it actually works, otherwise remove it 
     END IF;
 
     IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour_ > CURRENT_TIME)) THEN 
@@ -976,6 +1100,10 @@ BEGIN
         RAISE EXCEPTION 'This employee is already retired.';
     END IF;
 
+    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        RAISE EXCEPTION 'All hours must be exactly on the hour.';
+    END IF;
+
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
@@ -1000,9 +1128,9 @@ BEGIN
     END IF;
 
     IF NOT is_joining_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id) THEN
-        RAISE EXCEPTION 'If the employee was originally joining some session within the duration,'
-                || 'then they must have been originally joining all the sessions within the duration '
-                || 'to leave them all.';
+        RAISE EXCEPTION 'If the employee was originally joining some session within the duration, '
+                'then they must have been originally joining all the sessions within the duration '
+                'to leave them all.';
     END IF;
 
     session_hour := start_hour;
@@ -1015,9 +1143,9 @@ BEGIN
     IF is_booker_of_some_session
             AND NOT is_booker_of_entire_duration(floor_number, room_number, meeting_date, start_hour, end_hour,
                     employee_id) THEN
-        RAISE EXCEPTION 'If the employee is the booker of some session within the duration,'
-                || 'then they must be the booker of all the sessions within the duration '
-                || 'to leave them all.';
+        RAISE EXCEPTION 'If the employee is the booker of some session within the duration, '
+                'then they must be the booker of all the sessions within the duration '
+                'to leave them all.';
     END IF;
 
     IF is_booker_of_some_session THEN
@@ -1067,6 +1195,10 @@ BEGIN
 
     IF NOT is_employee_of_same_department_as_room(floor_number, room_number, employee_id) THEN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
+    END IF;
+
+    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+        RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
     IF NOT is_existing_meeting(floor_number, room_number, meeting_date, start_hour, end_hour) THEN
@@ -1153,7 +1285,7 @@ BEGIN
         AND j1.session_time = t1.session_time
         AND j1.eid <> employee_id;
 END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
 RETURNS TRIGGER AS $$
@@ -1162,7 +1294,7 @@ BEGIN
     -- close contacts removed from D to D+7 meetings
     DELETE FROM joins j
     WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
-    AND (j.sessions_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + interval '7 days'));
+    AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
 
     -- infected emp removed from all future meetings
     DELETE FROM joins j
@@ -1171,8 +1303,9 @@ BEGIN
 
     -- If the employee is the one booking the room, the booking is cancelled, approved or not.
     DELETE FROM meeting_sessions m
-    WHERE NEW.eid = meeting_sessions.booker_id;
+    WHERE NEW.eid = m.booker_id;
 
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1300,7 +1433,7 @@ AS $$
         ;
 
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
 
 -- CREATE OR REPLACE FUNCTION view_manager_report
@@ -1363,5 +1496,5 @@ RETURNS TABLE(
             s.session_date ASC,
             s.session_time ASC;
 
-    END
+    END;
 $$ LANGUAGE plpgsql;
