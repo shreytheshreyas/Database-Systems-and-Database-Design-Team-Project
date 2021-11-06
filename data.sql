@@ -36,7 +36,7 @@ INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_co
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Krista Breadon', 'junior', 2, NULL, 96522307, 64229534, 60510044);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Iormina Sample', 'junior', 3, NULL, 82555227, 67930030, 66786751);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Brannon Catanheira', 'junior', 4, NULL, NULL, NULL, NULL);
-INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Charissa Krug', 'junior', 5, NULL, 63336739, 68528492, 62710525);
+INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Charissa Krug', 'junior', 5, NULL, 83336739, 68528492, 62710525);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Laurent Coughlan', 'junior', 6, NULL, NULL, NULL, NULL);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Giacopo Gutman', 'junior', 7, NULL, 82245680, 60684078, 60291358);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Humfried Gouinlock', 'junior', 8, NULL, 87940278, 64715982, 64735287);
@@ -54,12 +54,12 @@ INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_co
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Alexei Langtree', 'senior', 0, NULL, NULL, NULL, NULL);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Donna Bice', 'senior', 1, NULL, 81346343, 61139952, 61380468);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Margret Spinas', 'senior', 2, NULL, 94271540, 63143328, 66325932);
-INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Jimmy Finby', 'senior', 3, '8/11/2021'::DATE, 68897753, 60235069, 62854872);
+INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Jimmy Finby', 'senior', 3, '8/11/2021'::DATE, 88897753, 60235069, 62854872);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Janis Finder', 'senior', 4, NULL, 98639400, 64488661, 61682693);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Nani Vickar', 'senior', 5, NULL, 82754927, 62874691, 68062906);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Cyndi Gaspard', 'senior', 6, NULL, 81034385, 63315737, 68954518);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Sebastien Spyvye', 'senior', 7, NULL, 97916379, 64638647, 67490816);
-INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Wye Puzey', 'senior', 8, NULL, 66353001, 61249911, 62862143);
+INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Wye Puzey', 'senior', 8, NULL, 86353001, 61249911, 62862143);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Dane Garraway', 'senior', 9, NULL, 91485800, 64600512, 62069420);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Tedman Rawcliffe', 'junior', 0, '6/11/2021'::DATE, 92174507, 63940417, 65161479);
 INSERT INTO employees (ename, ekind, did, resigned_date, mobile_contact, home_contact, office_contact) VALUES ('Jacki Livezey', 'junior', 1, NULL, NULL, NULL, NULL);
