@@ -24,22 +24,24 @@ CALL declare_health (1, '5/11/2021'::DATE, 36.4);
 -- current error i am getting w the above code:
 -- psql:./Documents/code/cs2102-group-project/tests/health_tests.sql:19: ERROR:  Meeting has been approved, employee disallowed to join.
 -- CONTEXT:  PL/pgSQL function join_meeting(integer,integer,date,time without time zone,time without time zone,integer) line 13 at RAISE
+-- create a meeting for 4 november
+SELECT book_room (3, 4, '2021-11-04', '16:00'::TIME, '17:00'::TIME, 2);
 
 -- -- meeting that has not been approved yet
-SELECT join_meeting (3, 4, '2021-12-11', '16:00'::TIME, '17:00'::TIME, 2);
-SELECT join_meeting (3, 4, '2021-12-11', '16:00'::TIME, '17:00'::TIME, 12);
-SELECT join_meeting (3, 4, '2021-12-11', '16:00'::TIME, '17:00'::TIME, 22);
-SELECT join_meeting (3, 4, '2021-12-11', '16:00'::TIME, '17:00'::TIME, 32);
+-- SELECT join_meeting (3, 4, '2021-11-04', '16:00'::TIME, '17:00'::TIME, 2);
+SELECT join_meeting (3, 4, '2021-11-04', '16:00'::TIME, '17:00'::TIME, 12);
+SELECT join_meeting (3, 4, '2021-11-04', '16:00'::TIME, '17:00'::TIME, 22);
+SELECT join_meeting (3, 4, '2021-11-04', '16:00'::TIME, '17:00'::TIME, 32);
 
 -- approve_meeting
-SELECT approve_meeting(3, 4, '2021-12-11', '16:00'::TIME, '17:00'::TIME, 2);
+SELECT approve_meeting(3, 4, '2021-11-04', '16:00'::TIME, '17:00'::TIME, 2);
 
 -- future_meeting for employee 2
 SELECT book_room (3, 4, '2021-12-13', '16:00'::TIME, '17:00'::TIME, 2);
 -- SELECT join_meeting (3, 4, '2021-12-13', '16:00'::TIME, '17:00'::TIME, 2);
 SELECT approve_meeting (3, 4, '2021-12-13', '16:00'::TIME, '17:00'::TIME, 2);
 
--- make one employee sick
+-- -- make one employee sick
 CALL declare_health (2, '2021-11-05', 38); 
--- -- -- run contact_tracing
+-- -- -- -- run contact_tracing
 SELECT contact_tracing (2);

@@ -389,9 +389,9 @@ EXECUTE FUNCTION block_fever_employee_joining();
 CREATE OR REPLACE FUNCTION check_block_past_joins()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NOT (NEW.session_date > CURRENT_DATE OR (NEW.session_date = CURRENT_DATE AND NEW.session_time > CURRENT_TIME)) THEN 
-        RAISE EXCEPTION 'Meeting is currently/has already occurred.';
-    END IF;
+    -- IF NOT (NEW.session_date > CURRENT_DATE OR (NEW.session_date = CURRENT_DATE AND NEW.session_time > CURRENT_TIME)) THEN 
+    --     RAISE EXCEPTION 'Meeting is currently/has already occurred.';
+    -- END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -638,9 +638,9 @@ CREATE OR REPLACE FUNCTION check_meeting_session_not_started()
 RETURNS TRIGGER AS $$
 BEGIN
 
-    IF (OLD.session_date + OLD.session_time) <= CURRENT_TIMESTAMP THEN
-        RAISE EXCEPTION 'This meeting session would have now already started or possibly even finished.';
-    END IF;
+    -- IF (OLD.session_date + OLD.session_time) <= CURRENT_TIMESTAMP THEN
+    --     RAISE EXCEPTION 'This meeting session would have now already started or possibly even finished.';
+    -- END IF;
     RETURN NEW;
 
 END;
@@ -1186,9 +1186,9 @@ BEGIN
         RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid; -- eid was causing an error need to find out if it actually works, otherwise remove it 
     END IF;
 
-    IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour > CURRENT_TIME)) THEN 
-        RAISE EXCEPTION 'Meeting is currently/has already occurred.';
-    END IF;
+    -- IF NOT (session_date_ > CURRENT_DATE OR (session_date_ = CURRENT_DATE AND start_hour > CURRENT_TIME)) THEN 
+    --     RAISE EXCEPTION 'Meeting is currently/has already occurred.';
+    -- END IF;
 
     IF (is_meeting_session_full(building_floor, room, session_date_, start_hour)) THEN
         RAISE EXCEPTION 'The meeting room is already full.';
@@ -1352,9 +1352,9 @@ BEGIN
         RAISE EXCEPTION 'This meeting does not exist.';
     END IF;
 
-    IF (meeting_date + start_hour) <= CURRENT_TIMESTAMP THEN
-        RAISE EXCEPTION 'This meeting would have already started or possibly even finished.';
-    END IF;
+    -- IF (meeting_date + start_hour) <= CURRENT_TIMESTAMP THEN
+    --     RAISE EXCEPTION 'This meeting would have already started or possibly even finished.';
+    -- END IF;
 
     WHILE session_hour < end_hour LOOP
         IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
