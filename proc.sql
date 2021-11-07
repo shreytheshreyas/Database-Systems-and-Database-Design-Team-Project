@@ -651,27 +651,32 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_not_started();
 
-/**
- * Contact Tracing constraints:
- * 1. The employee is removed from all future meeting room booking, approved or not.
- * 2. These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
- * 3. The employee is removed from all future meeting room booking, approved or not.
- */
+-- /**
+--  * Contact Tracing constraints:
+--  * 1. These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
+--  * 2. The employee is removed from all future meeting room booking, approved or not.
+--  * 3. If the employee is the one booking the room, the booking is cancelled, approved or not.
+--  */
+-- CREATE OR REPLACE FUNCTION contact_tracing_procedure()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     DELETE FROM joins j
+--     WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
+--     AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
+
+--     DELETE FROM joins j
+--     WHERE j.eid = NEW.eid
+--     AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
+
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- automatically calls contact tracing
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
 RETURNS TRIGGER AS $$
 BEGIN
-    DELETE FROM joins j
-    WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
-    AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
-
-    DELETE FROM joins j
-    WHERE j.eid = NEW.eid
-    AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
-
-    DELETE FROM meeting_sessions m
-    WHERE NEW.eid = m.booker_id;
-
-    RETURN NEW;
+    SELECT contact_tracing(NEW.eid);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1137,7 +1142,7 @@ RETURNS VOID AS $$
             AND m.booker_id = employee_id;
 
     ELSE 
-        RAISE EXCEPTION 'Booking does not exist';
+        RAISE EXCEPTION 'Booking does not exist %', booking_date;
     END IF;
 
     END;
@@ -1214,8 +1219,6 @@ BEGIN
 
 END;
 $$ LANGUAGE plpgsql;
--- SELECT join_meeting(1, 1, '2021-11-15', '15:00:00', '16:00:00', 10); -- add new meeting(+1 row)
-
 
 
 /**
@@ -1244,7 +1247,7 @@ BEGIN
         RAISE EXCEPTION 'This employee is already retired.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1341,7 +1344,7 @@ BEGIN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1361,15 +1364,15 @@ BEGIN
     END LOOP;
 
     UPDATE
-        meeting_sessions s
+        meeting_sessions
     SET
-        s.endorser_id = employee_id
+        endorser_id = employee_id
     WHERE
-        s.building_floor = floor_number
-        AND s.room = room_number
-        AND s.session_date = meeting_date
-        AND s.session_time >= start_hour
-        AND s.session_time < end_hour;
+        building_floor = floor_number
+        AND room = room_number
+        AND session_date = meeting_date
+        AND session_time >= start_hour
+        AND session_time < end_hour;
 
 END;
 $$ LANGUAGE plpgsql;
@@ -1403,7 +1406,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION contact_tracing (
+CREATE OR REPLACE FUNCTION contact_tracing_helper (
     employee_id INT
     )
 RETURNS TABLE (
@@ -1413,23 +1416,165 @@ BEGIN
     RETURN QUERY 
         SELECT DISTINCT j1.eid
         FROM joins j1,
-            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time
+            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time -- all meeting sessions that infected employee attends
             FROM meeting_sessions m, joins j
             WHERE j.eid = employee_id
             AND j.room = m.room
             AND j.building_floor = m.building_floor
             AND j.session_date = m.session_date
             AND j.session_time = m.session_time
-            AND m.endorser_id IS NOT NULL
-            AND m.session_date BETWEEN (CURRENT_DATE - interval '3 days') AND CURRENT_DATE
+            AND m.endorser_id IS NOT NULL -- alr approved meetings
+            AND m.session_date >= (CURRENT_DATE - interval '3 days') 
+            AND m.session_date <= CURRENT_DATE
             ) t1
         WHERE j1.room = t1.room
         AND j1.building_floor = t1.building_floor
         AND j1.session_date = t1.session_date
         AND j1.session_time = t1.session_time
-        AND j1.eid <> employee_id;
+        AND j1.eid <> employee_id; 
 END;
 $$ LANGUAGE plpgsql;
+
+
+DROP FUNCTION IF EXISTS contact_tracing;
+CREATE OR REPLACE FUNCTION contact_tracing (
+    employee_id INT,
+    tracing_date DATE
+)
+RETURNS TABLE (
+    eid INT
+) AS $$
+DECLARE
+    cancelled_bookings RECORD;
+    cancelled_future_meeting RECORD;
+    quarantine_future_meeting RECORD;
+    quarantine_employees RECORD;
+    temp_bookings RECORD;
+    cur REFCURSOR;
+    temp RECORD;
+    duration INT;
+BEGIN
+
+    --return empty table if employee doesnt have fever
+    IF NOT (has_fever_employee(employee_id)) THEN
+        RETURN QUERY
+        SELECT e.eid
+        FROM employees e WHERE 1=0;
+    END IF;
+
+    -- potential error in %. at most just remove the second % and just:
+    RAISE INFO 'Employee % has fever. Close contacts are as follows:', employee_id;
+
+    -- All employees in the same approved meeting room from the past 3 (i.e., from day D-3 to day D) days are contacted.
+    SELECT DISTINCT j1.eid
+    INTO quarantine_employees
+        FROM joins j1,
+            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time -- all meeting sessions that infected employee attends
+            FROM meeting_sessions m, joins j
+            WHERE j.eid = employee_id
+            AND j.room = m.room
+            AND j.building_floor = m.building_floor
+            AND j.session_date = m.session_date
+            AND j.session_time = m.session_time
+            AND m.endorser_id IS NOT NULL -- alr approved meetings
+            AND m.session_date >= (CURRENT_DATE - interval '3 days') 
+            AND m.session_date <= CURRENT_DATE
+            ) t1
+        WHERE j1.room = t1.room
+        AND j1.building_floor = t1.building_floor
+        AND j1.session_date = t1.session_date
+        AND j1.session_time = t1.session_time
+        AND j1.eid <> employee_id;     
+    
+    -- These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
+    FOR quarantine_future_meeting IN
+        SELECT *
+        FROM joins j
+        WHERE j.eid = quarantine_employees.eid
+        AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'))
+    LOOP
+        PERFORM leave_meeting(
+            quarantine_future_meeting.building_floor,
+            quarantine_future_meeting.room,
+            quarantine_future_meeting.session_date,
+            quarantine_future_meeting.session_time,
+            (quarantine_future_meeting.session_time + interval '1 hour'),
+            quarantine_future_meeting.eid
+        );
+    END LOOP;
+    
+    -- If the employee is the one booking the room, the booking is cancelled, approved or not.
+    -- HANDLED BY block_fever_employee_joining(), but implemented in case health dclaration happens after booking meeting
+    -- FOR cancelled_bookings IN
+    --     SELECT *
+    --     INTO temp_bookings
+    --     FROM meeting_sessions m
+    --     WHERE (m.session_date > CURRENT_DATE OR (m.session_date = CURRENT_DATE AND m.session_time > CURRENT_TIME))
+    --     AND booker_id = employee_id
+    -- LOOP
+    --     IF EXISTS (SELECT 1 FROM temp_bookings) THEN
+    --         SELECT unbook_room (
+    --             temp_bookings.building_floor,
+    --             temp_bookings.room,
+    --             temp_bookings.session_date,
+    --             temp_bookings.session_time,
+    --             (temp_bookings.session_time + interval '1 hour'),
+    --             employee_id
+    --         );
+    --     END IF;
+    -- END LOOP;
+    
+
+    OPEN cur FOR (SELECT *
+        INTO temp_bookings
+        FROM meeting_sessions m
+        WHERE (m.session_date > CURRENT_DATE OR (m.session_date = CURRENT_DATE AND m.session_time > CURRENT_TIME))
+        AND booker_id = employee_id);
+
+    LOOP
+        FETCH cur INTO temp;
+        EXIT WHEN NOT FOUND;
+            SELECT unbook_room (
+                temp.building_floor,
+                temp.room,
+                temp.session_date,
+                temp.session_time,
+                (temp.session_time + get_entire_meeting_duration(
+                    temp.building_floor,
+                    temp.room,
+                    temp.session_date,
+                    temp.session_time,
+                    employee_id)),
+                employee_id
+                );
+    END LOOP;
+    CLOSE cur;
+
+    -- The employee is removed from all future meeting room booking, approved or not. (not booker)
+    FOR cancelled_future_meeting IN
+        SELECT *
+        FROM joins
+        WHERE (session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND session_time > CURRENT_TIME)) 
+        AND eid = employee_id
+    LOOP
+        PERFORM leave_meeting (
+            cancelled_future_meeting.building_floor,
+            cancelled_future_meeting.room,
+            cancelled_future_meeting.session_date,
+            cancelled_future_meeting.session_time,
+            (cancelled_future_meeting.session_time + interval '1 hour'),
+            cancelled_future_meeting.eid
+        );
+    END LOOP;
+
+    -- return table
+    RETURN QUERY
+        SELECT * FROM quarantine_employees;
+
+END
+$$ LANGUAGE plpgsql;
+
+-- CALL declare_health (2, '2021-11-05', 38); 
 
 /***************************************
  * ADMIN
