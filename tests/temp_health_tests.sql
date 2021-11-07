@@ -43,3 +43,27 @@ SELECT approve_meeting (3, 4, '2021-12-13', '16:00'::TIME, '17:00'::TIME, 2);
 CALL declare_health (2, '2021-11-05', 38); 
 -- -- -- run contact_tracing
 SELECT contact_tracing (2);
+
+
+-- SELECT join_meeting (3, 4, '2021-11-15', '16:00'::TIME, '17:00'::TIME, 12);
+-- SELECT join_meeting (3, 4, '2021-11-15', '16:00'::TIME, '17:00'::TIME, 2);
+-- SELECT join_meeting (3, 4, '2021-11-15', '16:00'::TIME, '17:00'::TIME, 22);
+-- SELECT join_meeting (3, 4, '2021-11-15', '16:00'::TIME, '17:00'::TIME, 32);
+
+-- SELECT approve_meeting(3, 4, '2021-11-15', '16:00'::TIME, '17:00'::TIME, 2);
+
+-- CALL declare_health(10, '2021-11-03', 38); --also the booker
+-- remove bookings (3)
+--  room | building_floor | session_date | session_time | booker_id | endorser_id
+-- ------+----------------+--------------+--------------+-----------+-------------
+--     1 |              3 | 2021-11-23   | 12:00:00     |        10 |
+--     1 |              1 | 2021-11-17   | 16:00:00     |        10 |           2
+--     1 |              1 | 2021-11-17   | 17:00:00     |        10 |           2
+
+-- remove next 7 days 11-10
+-- return table 29,22,38
+-- 29: rmv 1 meeting in D+7, 1 future meeting >7 stay
+-- 22: rmv 1 meeting in D+7
+-- 38: no effectb
+
+
