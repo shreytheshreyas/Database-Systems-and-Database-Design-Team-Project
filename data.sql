@@ -328,7 +328,7 @@ INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (1, '
 INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (1, '7/11/2021'::DATE, 37.1);
 INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (1, '8/11/2021'::DATE, 37.2);
 INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (2, '6/11/2021'::DATE, 36.3);
-INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (2, '7/11/2021'::DATE, 36.8);
+-- INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (2, '7/11/2021'::DATE, 36.8);
 INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (2, '8/11/2021'::DATE, 37.1);
 INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (3, '6/11/2021'::DATE, 37.3);
 INSERT INTO health_declaration (eid, declaration_date, temperature) VALUES (3, '7/11/2021'::DATE, 36.9);
