@@ -370,7 +370,7 @@ CREATE OR REPLACE FUNCTION block_fever_employee_joining()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (has_fever_employee(NEW.eid)) THEN
-        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', NEW.eid;
     END IF;
     RETURN NEW;
 END;
@@ -1256,7 +1256,7 @@ BEGIN
     END IF;
 
     WHILE session_hour < end_hour LOOP
-        IF is_approved_session(OLD.building_floor, OLD.room, OLD.session_date, OLD.session_time) THEN
+        IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
             RAISE EXCEPTION 'None of the sessions in the meeting must already be approved.';
         END IF;
         session_hour := session_hour + INTERVAL '1 hour';
@@ -1296,7 +1296,7 @@ BEGIN
     END IF;
 
     IF is_booker_of_some_session THEN
-        SELECT unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
+        PERFORM unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
     ELSE
         DELETE FROM
             joins j
