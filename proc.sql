@@ -1435,7 +1435,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- SELECT join_meeting (3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 2);
+-- SELECT join_meeting (3, 4, '2021-CALL declare_health (2, '2021-11-01', 38); 
+-- 11-12', '16:00'::TIME, '17:00'::TIME, 12);
+-- SELECT join_meeting (3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 22);
+-- SELECT join_meeting (3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 32);
+-- SELECT approve_meeting(3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 2);
 
+DROP IF EXISTS contact_tracing;
 CREATE OR REPLACE FUNCTION contact_tracing (
     employee_id INT
 )
@@ -1461,7 +1468,8 @@ BEGIN
     RAISE INFO 'Employee % has fever today, %. Close contacts are as follows:', employee_id, CURRENT_DATE;
 
     -- All employees in the same approved meeting room from the past 3 (i.e., from day D-3 to day D) days are contacted.
-    INSERT INTO quarantine_employees SELECT DISTINCT j1.eid
+    SELECT DISTINCT j1.eid
+    INTO quarantine_employees
         FROM joins j1,
             (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time -- all meeting sessions that infected employee attends
             FROM meeting_sessions m, joins j
@@ -1479,6 +1487,7 @@ BEGIN
         AND j1.session_date = t1.session_date
         AND j1.session_time = t1.session_time
         AND j1.eid <> employee_id; 
+        -- quarantine_employees.eid := 
 
     -- These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
     FOR quarantine_future_meeting IN
