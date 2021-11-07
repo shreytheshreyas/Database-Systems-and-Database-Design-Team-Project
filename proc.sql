@@ -681,7 +681,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
-
 CREATE TRIGGER employee_has_fever
 AFTER INSERT ON health_declaration
 FOR EACH ROW
@@ -1143,7 +1142,7 @@ RETURNS VOID AS $$
             AND m.booker_id = employee_id;
 
     ELSE 
-        RAISE EXCEPTION 'Booking does not exist';
+        RAISE EXCEPTION 'Booking does not exist %', booking_date;
     END IF;
 
     END;
@@ -1436,7 +1435,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP IF EXISTS contact_tracing;
+
+DROP FUNCTION IF EXISTS contact_tracing;
 CREATE OR REPLACE FUNCTION contact_tracing (
     employee_id INT,
     tracing_date DATE
@@ -1450,13 +1450,16 @@ DECLARE
     quarantine_future_meeting RECORD;
     quarantine_employees RECORD;
     temp_bookings RECORD;
+    cur REFCURSOR;
+    temp RECORD;
+    duration INT;
 BEGIN
 
     --return empty table if employee doesnt have fever
     IF NOT (has_fever_employee(employee_id)) THEN
         RETURN QUERY
-        SELECT eid
-        FROM employees WHERE 1=0;
+        SELECT e.eid
+        FROM employees e WHERE 1=0;
     END IF;
 
     -- potential error in %. at most just remove the second % and just:
@@ -1502,24 +1505,50 @@ BEGIN
     
     -- If the employee is the one booking the room, the booking is cancelled, approved or not.
     -- HANDLED BY block_fever_employee_joining(), but implemented in case health dclaration happens after booking meeting
-    FOR cancelled_bookings IN
-        SELECT *
+    -- FOR cancelled_bookings IN
+    --     SELECT *
+    --     INTO temp_bookings
+    --     FROM meeting_sessions m
+    --     WHERE (m.session_date > CURRENT_DATE OR (m.session_date = CURRENT_DATE AND m.session_time > CURRENT_TIME))
+    --     AND booker_id = employee_id
+    -- LOOP
+    --     IF EXISTS (SELECT 1 FROM temp_bookings) THEN
+    --         SELECT unbook_room (
+    --             temp_bookings.building_floor,
+    --             temp_bookings.room,
+    --             temp_bookings.session_date,
+    --             temp_bookings.session_time,
+    --             (temp_bookings.session_time + interval '1 hour'),
+    --             employee_id
+    --         );
+    --     END IF;
+    -- END LOOP;
+    
+
+    OPEN cur FOR (SELECT *
         INTO temp_bookings
-        FROM meeting_sessions
-        WHERE (session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND session_time > CURRENT_TIME))
-        AND booker_id = employee_id
+        FROM meeting_sessions m
+        WHERE (m.session_date > CURRENT_DATE OR (m.session_date = CURRENT_DATE AND m.session_time > CURRENT_TIME))
+        AND booker_id = employee_id);
+
     LOOP
-        IF EXISTS (SELECT 1 FROM temp_bookings) THEN
-            PERFORM unbook_room (
-                temp_bookings.building_floor,
-                temp_bookings.room,
-                temp_bookings.session_date,
-                temp_bookings.session_time,
-                (temp_bookings.session_time + interval '1 hour'),
+        FETCH cur INTO temp;
+        EXIT WHEN NOT FOUND;
+            SELECT unbook_room (
+                temp.building_floor,
+                temp.room,
+                temp.session_date,
+                temp.session_time,
+                (temp.session_time + get_entire_meeting_duration(
+                    temp.building_floor,
+                    temp.room,
+                    temp.session_date,
+                    temp.session_time,
+                    employee_id)),
                 employee_id
-            );
-        END IF;
+                );
     END LOOP;
+    CLOSE cur;
 
     -- The employee is removed from all future meeting room booking, approved or not. (not booker)
     FOR cancelled_future_meeting IN
@@ -1544,6 +1573,8 @@ BEGIN
 
 END
 $$ LANGUAGE plpgsql;
+
+-- CALL declare_health (2, '2021-11-05', 38); 
 
 /***************************************
  * ADMIN
