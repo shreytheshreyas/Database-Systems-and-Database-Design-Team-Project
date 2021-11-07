@@ -1247,7 +1247,7 @@ BEGIN
         RAISE EXCEPTION 'This employee is already retired.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1344,7 +1344,7 @@ BEGIN
         RAISE EXCEPTION 'The manager approving the meeting must be from the same department that the meeting room belongs to.';
     END IF;
 
-    IF NOT (is_on_the_hour(start_hour) && is_on_the_hour(end_hour)) THEN
+    IF NOT (is_on_the_hour(start_hour) AND is_on_the_hour(end_hour)) THEN
         RAISE EXCEPTION 'All hours must be exactly on the hour.';
     END IF;
 
@@ -1364,15 +1364,15 @@ BEGIN
     END LOOP;
 
     UPDATE
-        meeting_sessions s
+        meeting_sessions
     SET
-        s.endorser_id = employee_id
+        endorser_id = employee_id
     WHERE
-        s.building_floor = floor_number
-        AND s.room = room_number
-        AND s.session_date = meeting_date
-        AND s.session_time >= start_hour
-        AND s.session_time < end_hour;
+        building_floor = floor_number
+        AND room = room_number
+        AND session_date = meeting_date
+        AND session_time >= start_hour
+        AND session_time < end_hour;
 
 END;
 $$ LANGUAGE plpgsql;
@@ -1446,7 +1446,7 @@ DECLARE
     cancelled_bookings RECORD;
     cancelled_future_meeting RECORD;
     quarantine_future_meeting RECORD;
-    quarantine_employees RECORD;
+    @quarantine_employees TABLE ();
 BEGIN
 
     --return empty table if employee doesnt have fever
@@ -1461,7 +1461,7 @@ BEGIN
     RAISE INFO 'Employee % has fever today, %. Close contacts are as follows:', employee_id, CURRENT_DATE;
 
     -- All employees in the same approved meeting room from the past 3 (i.e., from day D-3 to day D) days are contacted.
-    quarantine_employees := contact_tracing_helper(employee_id);
+    quarantine_employees := RETURN QUERY SELECT contact_tracing_helper(employee_id);
 
     -- These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
     FOR quarantine_future_meeting IN
