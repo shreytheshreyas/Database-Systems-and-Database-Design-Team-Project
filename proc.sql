@@ -1446,7 +1446,7 @@ DECLARE
     cancelled_bookings RECORD;
     cancelled_future_meeting RECORD;
     quarantine_future_meeting RECORD;
-    @quarantine_employees TABLE(eid INT);
+    quarantine_employees RECORD;
 BEGIN
 
     --return empty table if employee doesnt have fever
@@ -1461,7 +1461,7 @@ BEGIN
     RAISE INFO 'Employee % has fever today, %. Close contacts are as follows:', employee_id, CURRENT_DATE;
 
     -- All employees in the same approved meeting room from the past 3 (i.e., from day D-3 to day D) days are contacted.
-    INSERT INTO @quarantine_employees SELECT DISTINCT j1.eid
+    INSERT INTO quarantine_employees SELECT DISTINCT j1.eid
         FROM joins j1,
             (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time -- all meeting sessions that infected employee attends
             FROM meeting_sessions m, joins j
