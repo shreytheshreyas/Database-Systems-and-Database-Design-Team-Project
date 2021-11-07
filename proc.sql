@@ -1206,7 +1206,7 @@ RETURNS VOID AS $$
             AND m.booker_id = employee_id;
 
     ELSE 
-        RAISE EXCEPTION 'Booking does not exist %', booking_date;
+        RAISE EXCEPTION 'Booking does not exist';
     END IF;
 
     END;
