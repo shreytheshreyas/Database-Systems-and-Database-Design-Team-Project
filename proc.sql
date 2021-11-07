@@ -1468,7 +1468,7 @@ BEGIN
         SELECT *
         FROM joins j
         WHERE j.eid = quarantine_employees.eid
-        AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
+        AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'))
     LOOP
         PERFORM leave_meeting(
             quarantine_future_meeting.building_floor,
@@ -1477,7 +1477,7 @@ BEGIN
             quarantine_future_meeting.session_time,
             (quarantine_future_meeting.session_time + interval '1 hour'),
             quarantine_future_meeting.eid
-        )
+        );
     END LOOP;
     
     -- If the employee is the one booking the room, the booking is cancelled, approved or not.
@@ -1495,7 +1495,7 @@ BEGIN
             cancelled_bookings.session_time,
             (cancelled_bookings.session_time + interval '1 hour'),
             cancelled_bookings.eid
-        )
+        );
     END LOOP;
 
     -- The employee is removed from all future meeting room booking, approved or not. (not booker)
@@ -1512,7 +1512,7 @@ BEGIN
             cancelled_future_meeting.session_time,
             (cancelled_future_meeting.session_time + interval '1 hour'),
             cancelled_future_meeting.eid
-        )
+        );
     END LOOP;
 
     -- return table
