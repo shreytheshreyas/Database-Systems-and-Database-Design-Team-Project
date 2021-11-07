@@ -731,26 +731,7 @@ BEFORE UPDATE OF endorser_id ON meeting_sessions
 FOR EACH ROW
 EXECUTE FUNCTION check_meeting_session_not_started();
 
--- /**
---  * Contact Tracing constraints:
---  * 1. These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
---  * 2. The employee is removed from all future meeting room booking, approved or not.
---  * 3. If the employee is the one booking the room, the booking is cancelled, approved or not.
---  */
--- CREATE OR REPLACE FUNCTION contact_tracing_procedure()
--- RETURNS TRIGGER AS $$
--- BEGIN
---     DELETE FROM joins j
---     WHERE j.eid IN (SELECT contact_tracing(NEW.eid))
---     AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'));
 
---     DELETE FROM joins j
---     WHERE j.eid = NEW.eid
---     AND (j.session_date > CURRENT_DATE OR (j.session_date = CURRENT_DATE AND j.session_time > CURRENT_TIME));
-
---     RETURN NEW;
--- END;
--- $$ LANGUAGE plpgsql;
 
 -- automatically calls contact tracing
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
