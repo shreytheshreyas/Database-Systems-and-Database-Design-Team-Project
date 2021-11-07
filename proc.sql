@@ -38,6 +38,38 @@ RETURNS BOOLEAN AS $$
 
 $$ LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION is_existing_junior(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            junior j
+        WHERE
+            j.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_existing_senior(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            senior s
+        WHERE
+            s.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
 CREATE OR REPLACE FUNCTION is_existing_manager(
     employee_id INT
 )
@@ -50,6 +82,22 @@ RETURNS BOOLEAN AS $$
             manager m
         WHERE
             m.eid = employee_id
+    );
+
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION is_existing_booker(
+    employee_id INT
+)
+RETURNS BOOLEAN AS $$
+
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            booker b
+        WHERE
+            b.eid = employee_id
     );
 
 $$ LANGUAGE sql;
@@ -441,6 +489,153 @@ $$ LANGUAGE plpgsql;
 /***************************************
  * TRIGGERS
  **************************************/
+
+/**
+ * Constraint 12(i)
+ * "Each employee must be one and only one of the three kinds of employees: junior, senior or manager."
+ * Handling inserts into junior if already senior or manager here.
+ */
+CREATE OR REPLACE FUNCTION check_extra_employee_kind_junior()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_existing_senior(NEW.eid) THEN
+        RAISE EXCEPTION 'This employee cannot also be both a junior and a senior.';
+    END IF;
+    IF is_existing_manager(NEW.eid) THEN
+        RAISE EXCEPTION 'This employee cannot also be both a junior and a manager.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS extra_employee_kind_junior ON junior;
+CREATE CONSTRAINT TRIGGER extra_employee_kind_junior
+AFTER INSERT ON junior
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION check_extra_employee_kind_junior();
+
+/**
+ * Constraint 12(ii)
+ * "Each employee must be one and only one of the three kinds of employees: junior, senior or manager."
+ * Handling inserts into senior if already junior or manager here.
+ */
+CREATE OR REPLACE FUNCTION check_extra_employee_kind_senior()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_existing_junior(NEW.eid) THEN
+        RAISE EXCEPTION 'This employee cannot also be both a senior and a junior.';
+    END IF;
+    IF is_existing_manager(NEW.eid) THEN
+        RAISE EXCEPTION 'This employee cannot also be both a senior and a manager.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS extra_employee_kind_senior ON senior;
+CREATE CONSTRAINT TRIGGER extra_employee_kind_senior
+AFTER INSERT ON senior
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION check_extra_employee_kind_senior();
+
+/**
+ * Constraint 12(iii)
+ * "Each employee must be one and only one of the three kinds of employees: junior, senior or manager."
+ * Handling inserts into manager if already junior or senior here.
+ */
+CREATE OR REPLACE FUNCTION check_extra_employee_kind_manager()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF is_existing_junior(NEW.eid) THEN
+        RAISE EXCEPTION 'This employee cannot also be both a manager and a junior.';
+    END IF;
+    IF is_existing_senior(NEW.eid) THEN
+        RAISE EXCEPTION 'This employee cannot also be both a manager and a senior.';
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS extra_employee_kind_manager ON manager;
+CREATE CONSTRAINT TRIGGER extra_employee_kind_manager
+AFTER INSERT ON manager
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION check_extra_employee_kind_manager();
+
+/**
+ * Constraint 12(iv)
+ * "Each employee must be one and only one of the three kinds of employees: junior, senior or manager."
+ * Handling deletions from junior if not already also senior or manager here.
+ */
+CREATE OR REPLACE FUNCTION check_no_employee_kind_junior()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NOT (is_existing_senior(OLD.eid) OR is_existing_manager(OLD.eid)) THEN
+        RAISE EXCEPTION 'This employee cannot stop being a junior if they are not also already a senior or a manager.';
+    END IF;
+    RETURN OLD;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS no_employee_kind_junior ON junior;
+CREATE CONSTRAINT TRIGGER no_employee_kind_junior
+AFTER DELETE ON junior
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION check_no_employee_kind_junior();
+
+/**
+ * Constraint 12(v)
+ * "Each employee must be one and only one of the three kinds of employees: junior, senior or manager."
+ * Handling deletions from senior if not already also junior or manager here.
+ */
+CREATE OR REPLACE FUNCTION check_no_employee_kind_senior()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NOT (is_existing_junior(OLD.eid) OR is_existing_manager(OLD.eid)) THEN
+        RAISE EXCEPTION 'This employee cannot stop being a senior if they are not also already a junior or a manager.';
+    END IF;
+    RETURN OLD;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS no_employee_kind_senior ON senior;
+CREATE CONSTRAINT TRIGGER no_employee_kind_senior
+AFTER DELETE ON senior
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION check_no_employee_kind_senior();
+
+/**
+ * Constraint 12(vi)
+ * "Each employee must be one and only one of the three kinds of employees: junior, senior or manager."
+ * Handling deletions from manager if not already also junior or senior here.
+ */
+CREATE OR REPLACE FUNCTION check_no_employee_kind_manager()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NOT (is_existing_junior(OLD.eid) OR is_existing_senior(OLD.eid)) THEN
+        RAISE EXCEPTION 'This employee cannot stop being a manager if they are not also already a junior or a senior.';
+    END IF;
+    RETURN OLD;
+
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS no_employee_kind_manager ON manager;
+CREATE CONSTRAINT TRIGGER no_employee_kind_manager
+AFTER DELETE ON manager
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION check_no_employee_kind_manager();
 
 /**
  * Constraint 19
