@@ -450,7 +450,7 @@ CREATE OR REPLACE FUNCTION block_fever_employee_joining()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (has_fever_employee(NEW.eid)) THEN
-        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', eid;
+        RAISE EXCEPTION 'Employee % has a fever, unable to join meeting.', NEW.eid;
     END IF;
     RETURN NEW;
 END;
@@ -1339,7 +1339,9 @@ BEGIN
     END IF;
 
     WHILE session_hour < end_hour LOOP
-        IF is_approved_session(floor_number, room_number, meeting_date, start_hour) THEN
+
+        IF is_approved_session(floor_number, room_number, meeting_date, session_hour) THEN
+
             RAISE EXCEPTION 'None of the sessions in the meeting must already be approved.';
         END IF;
 
@@ -1380,7 +1382,7 @@ BEGIN
     END IF;
 
     IF is_booker_of_some_session THEN
-        SELECT unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
+        PERFORM unbook_room(floor_number, room_number, meeting_date, start_hour, end_hour, employee_id);
     ELSE
         DELETE FROM
             joins j
@@ -1643,7 +1645,7 @@ CREATE OR REPLACE FUNCTION non_compliance_helper (
 RETURNS TABLE(eid INTEGER, num_of_days INTEGER) 
 AS $$
 DECLARE 
-    table_cursor CURSOR FOR (SELECT e.eid FROM employees e);
+    table_cursor CURSOR FOR (SELECT e.eid, e.resigned_date FROM employees e);
     temp_date DATE := begin_date;
     table_record RECORD;
     day_counter INTEGER := 0;
@@ -1655,6 +1657,7 @@ BEGIN
         FETCH table_cursor INTO table_record;
         EXIT WHEN NOT FOUND;
         
+        CONTINUE WHEN table_record.resigned_date IS NOT NULL;
         --This loop is the nested loop
         WHILE temp_date <= end_date LOOP
             IF NOT EXISTS(SELECT 1 FROM health_declaration hd WHERE hd.eid = table_record.eid AND hd.declaration_date = temp_date) THEN

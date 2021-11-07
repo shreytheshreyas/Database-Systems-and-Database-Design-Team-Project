@@ -203,6 +203,7 @@ INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, 
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (1, 3, '7/11/2021'::DATE, '15:00'::TIME, 46, 3); -- 8
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (3, 3, '4/11/2021'::DATE, '17:00'::TIME, 39, 31); -- 5
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '3/11/2021'::DATE, '12:00'::TIME, 39, 35); -- 50
+INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (1, 1, '6/11/2021'::DATE, '6:00'::TIME, 2, null); -- 50
 
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '8/11/2021'::DATE, '9:00'::TIME, 14, 5); -- 50, 3h meeting
 INSERT INTO meeting_sessions (building_floor, room, session_date, session_time, booker_id, endorser_id) VALUES (2, 1, '8/11/2021'::DATE, '10:00'::TIME, 14, 5);
