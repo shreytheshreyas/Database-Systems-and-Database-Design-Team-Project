@@ -736,11 +736,9 @@ EXECUTE FUNCTION check_meeting_session_not_started();
 -- automatically calls contact tracing
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
 RETURNS TRIGGER AS $$
--- DECLARE 
---     tracing_data RECORD; 
 BEGIN
     PERFORM contact_tracing(NEW.eid);
-    RETURN NEW; --change by shreyas
+    RETURN NEW; 
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1471,37 +1469,6 @@ BEGIN
     INSERT INTO health_declaration VALUES (employee_id,declaration_date,temperature);
 END;
 $$ LANGUAGE plpgsql;
-
-
-CREATE OR REPLACE FUNCTION contact_tracing_helper (
-    employee_id INT
-    )
-RETURNS TABLE (
-    eid INT
-    ) AS $$
-BEGIN
-    RETURN QUERY 
-        SELECT DISTINCT j1.eid
-        FROM joins j1,
-            (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time -- all meeting sessions that infected employee attends
-            FROM meeting_sessions m, joins j
-            WHERE j.eid = employee_id
-            AND j.room = m.room
-            AND j.building_floor = m.building_floor
-            AND j.session_date = m.session_date
-            AND j.session_time = m.session_time
-            AND m.endorser_id IS NOT NULL -- alr approved meetings
-            AND m.session_date >= (CURRENT_DATE - interval '3 days') 
-            AND m.session_date <= CURRENT_DATE
-            ) t1
-        WHERE j1.room = t1.room
-        AND j1.building_floor = t1.building_floor
-        AND j1.session_date = t1.session_date
-        AND j1.session_time = t1.session_time
-        AND j1.eid <> employee_id; 
-END;
-$$ LANGUAGE plpgsql;
-
 
 DROP FUNCTION IF EXISTS contact_tracing;
 CREATE OR REPLACE FUNCTION contact_tracing (
