@@ -249,9 +249,9 @@ INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (46, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (53, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
-INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (54, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (22, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (6, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
-INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (16, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (29, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (58, 1, 3, '7/11/2021'::DATE, '15:00'::TIME);
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (39, 3, 3, '4/11/2021'::DATE, '17:00'::TIME);
@@ -290,7 +290,7 @@ INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (46, 3, 1, '4/11/2021'::DATE, '18:00'::TIME);
 
 -- future joins
-INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (46, 1, 1, '15/11/2021'::DATE, '15:00'::TIME);
+INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (29, 1, 1, '15/11/2021'::DATE, '15:00'::TIME);
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (3, 1, 1, '15/11/2021'::DATE, '15:00'::TIME);
 
 INSERT INTO joins (eid, building_floor, room, session_date, session_time) VALUES (12, 1, 1, '19/11/2021'::DATE, '13:00'::TIME);

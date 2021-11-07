@@ -681,6 +681,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS employee_has_fever ON health_declaration;
+
 CREATE TRIGGER employee_has_fever
 AFTER INSERT ON health_declaration
 FOR EACH ROW
@@ -1435,16 +1436,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- SELECT join_meeting (3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 2);
--- SELECT join_meeting (3, 4, '2021-CALL declare_health (2, '2021-11-01', 38); 
--- 11-12', '16:00'::TIME, '17:00'::TIME, 12);
--- SELECT join_meeting (3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 22);
--- SELECT join_meeting (3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 32);
--- SELECT approve_meeting(3, 4, '2021-11-12', '16:00'::TIME, '17:00'::TIME, 2);
-
 DROP IF EXISTS contact_tracing;
 CREATE OR REPLACE FUNCTION contact_tracing (
-    employee_id INT
+    employee_id INT,
+    tracing_date DATE
 )
 RETURNS TABLE (
     eid INT
@@ -1454,6 +1449,7 @@ DECLARE
     cancelled_future_meeting RECORD;
     quarantine_future_meeting RECORD;
     quarantine_employees RECORD;
+    temp_bookings RECORD;
 BEGIN
 
     --return empty table if employee doesnt have fever
@@ -1464,8 +1460,7 @@ BEGIN
     END IF;
 
     -- potential error in %. at most just remove the second % and just:
-    -- RAISE INFO 'Employee % has fever today. Close contacts are as follows:', employee_id;
-    RAISE INFO 'Employee % has fever today, %. Close contacts are as follows:', employee_id, CURRENT_DATE;
+    RAISE INFO 'Employee % has fever. Close contacts are as follows:', employee_id;
 
     -- All employees in the same approved meeting room from the past 3 (i.e., from day D-3 to day D) days are contacted.
     SELECT DISTINCT j1.eid
@@ -1486,9 +1481,8 @@ BEGIN
         AND j1.building_floor = t1.building_floor
         AND j1.session_date = t1.session_date
         AND j1.session_time = t1.session_time
-        AND j1.eid <> employee_id; 
-        -- quarantine_employees.eid := 
-
+        AND j1.eid <> employee_id;     
+    
     -- These employees are removed from future meeting in the next 7 days (i.e., from day D to day D+7).
     FOR quarantine_future_meeting IN
         SELECT *
@@ -1509,19 +1503,22 @@ BEGIN
     -- If the employee is the one booking the room, the booking is cancelled, approved or not.
     -- HANDLED BY block_fever_employee_joining(), but implemented in case health dclaration happens after booking meeting
     FOR cancelled_bookings IN
-        SELECT room, building_floor, session_date, session_time, eid
+        SELECT *
+        INTO temp_bookings
         FROM meeting_sessions
         WHERE (session_date > CURRENT_DATE OR (session_date = CURRENT_DATE AND session_time > CURRENT_TIME))
         AND booker_id = employee_id
     LOOP
-        PERFORM unbook_room (
-            cancelled_bookings.building_floor,
-            cancelled_bookings.room,
-            cancelled_bookings.session_date,
-            cancelled_bookings.session_time,
-            (cancelled_bookings.session_time + interval '1 hour'),
-            cancelled_bookings.eid
-        );
+        IF EXISTS (SELECT 1 FROM temp_bookings) THEN
+            PERFORM unbook_room (
+                temp_bookings.building_floor,
+                temp_bookings.room,
+                temp_bookings.session_date,
+                temp_bookings.session_time,
+                (temp_bookings.session_time + interval '1 hour'),
+                employee_id
+            );
+        END IF;
     END LOOP;
 
     -- The employee is removed from all future meeting room booking, approved or not. (not booker)
