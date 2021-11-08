@@ -929,10 +929,11 @@ EXECUTE FUNCTION check_meeting_session_not_started();
 
 
 -- automatically calls contact tracing
+DROP FUNCTION IF EXISTS contact_tracing_procedure;
 CREATE OR REPLACE FUNCTION contact_tracing_procedure()
 RETURNS TRIGGER AS $$
 BEGIN
-    PERFORM contact_tracing(NEW.eid);
+    PERFORM contact_tracing(NEW.eid, NEW.declaration_date);
     RETURN NEW; 
 END;
 $$ LANGUAGE plpgsql;
@@ -1667,8 +1668,8 @@ $$ LANGUAGE plpgsql;
 
 DROP FUNCTION IF EXISTS contact_tracing;
 CREATE OR REPLACE FUNCTION contact_tracing (
-    employee_id INT
-    -- tracing_date DATE
+    employee_id INT,
+    tracing_date DATE -- date where health is declared
 )
 RETURNS TABLE (
     eid INT
@@ -1677,13 +1678,12 @@ DECLARE
     cancelled_bookings RECORD;
     cancelled_future_meeting RECORD;
     quarantine_future_meeting RECORD;
-    -- quarantine_employees RECORD;
     temp_bookings RECORD;
-    cur REFCURSOR;
     temp RECORD;
     duration INT;
 BEGIN
-    CREATE TEMP TABLE IF NOT EXISTS quarantine_employees AS
+    DROP TABLE IF EXISTS quarantine_employees;
+    CREATE TEMP TABLE  quarantine_employees AS
         SELECT DISTINCT j1.eid
             FROM joins j1,
                 (SELECT DISTINCT j.room, j.building_floor, j.session_date, j.session_time -- all meeting sessions that infected employee attends
@@ -1694,8 +1694,8 @@ BEGIN
                 AND j.session_date = m.session_date
                 AND j.session_time = m.session_time
                 AND m.endorser_id IS NOT NULL -- alr approved meetings
-                AND m.session_date >= (CURRENT_DATE - interval '3 days') 
-                AND m.session_date <= CURRENT_DATE
+                AND m.session_date >= (tracing_date - interval '3 days') 
+                AND m.session_date <= tracing_date
                 ) t1
             WHERE j1.room = t1.room
             AND j1.building_floor = t1.building_floor
@@ -1718,7 +1718,7 @@ BEGIN
         SELECT *
         FROM joins j, quarantine_employees q
         WHERE j.eid = q.eid
-        AND (j.session_date >= CURRENT_DATE AND j.session_date <= (CURRENT_DATE + interval '7 days'))
+        AND (j.session_date >= tracing_date AND j.session_date <= (tracing_date + interval '7 days'))
     LOOP
         PERFORM remove_employee_meeting(
             quarantine_future_meeting.building_floor,
@@ -1739,8 +1739,6 @@ BEGIN
         WHERE (m.session_date > CURRENT_DATE OR (m.session_date = CURRENT_DATE AND m.session_time > CURRENT_TIME))
         AND booker_id = employee_id)
     LOOP
-        -- IF EXISTS (SELECT 1 FROM temp_bookings) THEN
-        -- IF EXISTS (SELECT 1 FROM cancelled_bookings) THEN 
             PERFORM unbook_room (
                 cancelled_bookings.building_floor,
                 cancelled_bookings.room,
